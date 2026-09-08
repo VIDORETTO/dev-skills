@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "effort_id": "002-limite-desconto",
+  "mode": "compact",
+  "phase": "implementation",
+  "status": "active",
+  "revision": 1,
+  "baseline": {
+    "kind": "inventory",
+    "ref": "example-baseline"
+  },
+  "inputs": {
+    "contract": {
+      "path": "specs/002-limite-desconto/change.md",
+      "revision": 1,
+      "fingerprint": "dc09241723d782699fc88a16ba381c9721d1448fdab4b91144bc916f06a1d378"
+    }
+  },
+  "active_ticket": null,
+  "last_evidence": null,
+  "pending_questions": [],
+  "blockers": [],
+  "next_action": "Escrever AC-001 no seam da função pública",
+  "authorization_refs": [
+    "user-request:small-change"
+  ]
+}

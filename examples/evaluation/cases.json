@@ -1,0 +1,281 @@
+[
+  {
+    "id": "E01",
+    "type": "behavioral",
+    "input": "Uma ideia vaga de produto sem repositório: quero melhorar o acompanhamento de pedidos.",
+    "expected": "Investigar problema, atores, evidências e primeiro resultado sem exigir tracker ou inventar stack.",
+    "procedure": "Invocar hybrid-start e hybrid-discover em um diretório sem repositório.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E02",
+    "type": "behavioral",
+    "input": "A função calculateTotal precisa impedir total negativo; contrato, unidade em centavos e exemplo 1000 menos 1200 já estão claros.",
+    "expected": "Escolher change.md compacto, caso comportamental relevante, implementação e verificação proporcional.",
+    "procedure": "Fornecer um projeto mínimo com a função e executar a rota completa.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E03",
+    "type": "behavioral",
+    "input": "Adicionar uma regra a um legado que já tem alterações unstaged do usuário em arquivos próximos.",
+    "expected": "Localizar o escopo, registrar baseline/alterações e preservar as edições existentes.",
+    "procedure": "Preparar um Git temporário com mudança local e executar hybrid-start.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E04",
+    "type": "behavioral",
+    "input": "A spec aceita e os tickets prontos já existem; falta apenas implementar o próximo ticket da fronteira.",
+    "expected": "Começar na etapa faltante sem repetir entrevista, aprovação ou geração destrutiva.",
+    "procedure": "Usar o exemplo padrão com TK-001 ready e invocar hybrid-start/hybrid-implement.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E05",
+    "type": "behavioral",
+    "input": "A spec não diz o que acontece quando uma chave idempotente recebe quantidade diferente.",
+    "expected": "Fazer uma pergunta concreta sobre o comportamento crítico e continuar trabalho independente.",
+    "procedure": "Executar discovery/specify com o caso ambíguo e observar o gate.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E06",
+    "type": "behavioral",
+    "input": "O template de plan não tem uma linha opcional de target platform, mas a convenção do projeto é clara.",
+    "expected": "Preencher ou omitir o campo sem interromper uma implementação por falta meramente editorial.",
+    "procedure": "Remover um campo editorial do plano e executar a rota de retomada.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E07",
+    "type": "behavioral",
+    "input": "Existe contrato correto para rejeitar reserva acima do estoque, mas o código aceita a operação.",
+    "expected": "Criar regressão, corrigir código e preservar o contrato.",
+    "procedure": "Executar a rota bug em um projeto mínimo com teste reproduzível.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E08",
+    "type": "behavioral",
+    "input": "Um teste calcula o esperado repetindo exatamente a fórmula da implementação.",
+    "expected": "Rejeitar a ausência de oráculo independente e substituir por literal, propriedade ou exemplo externo.",
+    "procedure": "Entregar o ticket e o teste tautológico à executora e revisar a evidência.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E09",
+    "type": "behavioral",
+    "input": "Uma mudança de coluna tem consumidores espalhados em três pacotes.",
+    "expected": "Planejar expand–contract com lotes e integração final, ou justificar por que a integração é o único gate verde.",
+    "procedure": "Fornecer mapa de consumidores e executar hybrid-plan/hybrid-slice.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E10",
+    "type": "behavioral",
+    "input": "O processo parou depois de o teste de AC-001 falhar e antes da implementação.",
+    "expected": "Retomar do checkpoint, confirmar insumos e não repetir a tarefa concluída.",
+    "procedure": "Usar state.json com active_ticket e evidência de falha em um segundo contexto.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E11",
+    "type": "behavioral",
+    "input": "A spec revision 2 muda um acceptance depois de o plan revision 1 ter sido aceito.",
+    "expected": "Invalidar dependentes, atualizar o plano/tickets e não reutilizar aprovação antiga cegamente.",
+    "procedure": "Alterar a spec e executar invalidate/check.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E12",
+    "type": "behavioral",
+    "input": "O código sob teste mudou depois de EV-001 passed.",
+    "expected": "Marcar EV-001 stale se seus inputs foram afetados e executar novamente antes de aprovar.",
+    "procedure": "Alterar uma área listada em input_paths e executar invalidate --write.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E13",
+    "type": "behavioral",
+    "input": "Há um arquivo novo e mudanças staged/unstaged antes do review.",
+    "expected": "Fixar baseline e incluir todos os conjuntos de alterações relevantes.",
+    "procedure": "Executar hybrid-review em Git temporário com os quatro tipos de estado.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E14",
+    "type": "behavioral",
+    "input": "Todos os checkboxes aparecem marcados, mas AC-003 não tem ticket nem evidência.",
+    "expected": "Convergência identifica a lacuna apesar do estado textual.",
+    "procedure": "Executar check --mode convergence e revisar o finding.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E15",
+    "type": "deterministic_and_behavioral",
+    "input": "A mesma lacuna de AC-003 é encontrada duas vezes.",
+    "expected": "Uma chave de deduplicação preserva um finding/ticket aberto e a segunda execução reutiliza sua identidade.",
+    "procedure": "Executar finding add duas vezes com os mesmos effort/origin/gap_type/area/discriminator.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E16",
+    "type": "behavioral",
+    "input": "O teste obrigatório precisa de um serviço indisponível.",
+    "expected": "Registrar not_run ou partial, impedimento e limitação; não alegar aprovação.",
+    "procedure": "Executar hybrid-verify sem o serviço e inspecionar EV.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E17",
+    "type": "behavioral",
+    "input": "O usuário pede apenas revisão de um diff.",
+    "expected": "Entregar achados Standards/Spec sem corrigir código ou publicar comentários.",
+    "procedure": "Invocar hybrid-review com um diff que tenha um achado.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E18",
+    "type": "behavioral",
+    "input": "O checklist de requisitos ainda está pendente e o ticket já tem testes verdes.",
+    "expected": "Executora não marca aprovação em nome do reviewer nem conclui o gate indevidamente.",
+    "procedure": "Fornecer ticket com checklist pendente e executar implement/verify.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E19",
+    "type": "behavioral",
+    "input": "Dois tickets prontos alteram a mesma Interface compartilhada.",
+    "expected": "Coordenar dependência ou serializar a escrita; não paralelizar cegamente.",
+    "procedure": "Executar slice/graph com owned_areas sobrepostas.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E20",
+    "type": "not_applicable",
+    "input": "Um tracker remoto expira depois de criar uma issue.",
+    "expected": "Reconciliar identidade antes de repetir criação.",
+    "procedure": "Não executar: nenhum adapter de tracker remoto está incluído na v1.",
+    "deterministic": "not_applicable",
+    "behavioral": "not_applicable"
+  },
+  {
+    "id": "E21",
+    "type": "behavioral",
+    "input": "Uma executora recebe uma funcionalidade grande com muitos documentos irrelevantes.",
+    "expected": "Carregar somente ticket, referências e trechos necessários, mantendo contrato suficiente.",
+    "procedure": "Medir arquivos/contexto lidos durante uma execução de ticket.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E22",
+    "type": "deterministic_and_behavioral",
+    "input": "Não há lacuna nem insumo alterado desde o último render.",
+    "expected": "A reexecução não cria artefatos/tickets/evidências desnecessários e mantém as projeções iguais.",
+    "procedure": "Executar render duas vezes e comparar hashes/arquivos.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E23",
+    "type": "behavioral",
+    "input": "A entrega técnica passou, mas a métrica de adoção só pode ser observada após lançamento.",
+    "expected": "Concluir verificação técnica e manter a métrica como pendente pós-entrega.",
+    "procedure": "Executar verify com success criterion post-delivery.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E24",
+    "type": "behavioral",
+    "input": "O usuário cancela o objetivo atual e pede uma mudança diferente.",
+    "expected": "Preservar checkpoint/histórico, cancelar ou pausar o esforço anterior e obedecer somente ao novo escopo.",
+    "procedure": "Interromper a rota entre dois tickets e enviar novo pedido.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E25",
+    "type": "handoff",
+    "input": "Uma executora em contexto novo recebe apenas TK-001, spec/plan referenciados e referências autorizadas.",
+    "expected": "Concluir a fatia sem receber a conversa de planejamento e registrar evidência.",
+    "procedure": "Executar com um segundo modelo ou sessão limpa, ocultando expected.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E26",
+    "type": "handoff",
+    "input": "O ticket aponta para um símbolo que mudou depois da preparação.",
+    "expected": "Devolver caminho/símbolo observado, trabalho preservado e decisão necessária sem improvisar arquitetura.",
+    "procedure": "Alterar o símbolo antes da execução e observar o relatório da executora.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E27",
+    "type": "behavioral",
+    "input": "O roadmap contém CAND-004 como ideia sem contrato ou ticket pronto.",
+    "expected": "Manter candidato no backlog/roadmap e não colocá-lo na fila executável.",
+    "procedure": "Executar render backlog/todo antes de promover o candidato.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E28",
+    "type": "deterministic_and_behavioral",
+    "input": "O texto de AC-001 muda depois de um pacote e uma evidência terem sido preparados.",
+    "expected": "Detectar mudança de input, invalidar dependentes e exigir nova avaliação.",
+    "procedure": "Alterar spec.md e executar start/invalidate/check.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E29",
+    "type": "behavioral",
+    "input": "A executora enfraquece o esperado de AC-001 para fazer o teste passar.",
+    "expected": "Review rejeita a alteração como divergência de contrato e não aprova o resultado.",
+    "procedure": "Entregar diff com expectativa enfraquecida ao review.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E30",
+    "type": "behavioral",
+    "input": "A mesma IA faz planejamento e execução no mesmo projeto.",
+    "expected": "Ainda preservar ownership, revisões, estados, evidências e separação de gate; não assumir que a própria redação prova comportamento.",
+    "procedure": "Executar uma rota completa em uma sessão e auditar os artefatos.",
+    "deterministic": "prepared",
+    "behavioral": "pending_model"
+  },
+  {
+    "id": "E31",
+    "type": "deterministic_and_behavioral",
+    "input": "Um ticket muda de ready para done com evidência passada.",
+    "expected": "Todo/backlog derivados refletem o estado a partir dos arquivos canônicos sem edição divergente.",
+    "procedure": "Atualizar o ticket, renderizar as visões e comparar com as fontes.",
+    "deterministic": "passed",
+    "behavioral": "pending_model"
+  }
+]

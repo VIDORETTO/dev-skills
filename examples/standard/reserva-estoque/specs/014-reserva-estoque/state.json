@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "effort_id": "014-reserva-estoque",
+  "mode": "standard",
+  "phase": "slicing",
+  "status": "active",
+  "revision": 4,
+  "baseline": {
+    "kind": "inventory",
+    "ref": "example-baseline"
+  },
+  "inputs": {
+    "spec": {
+      "path": "specs/014-reserva-estoque/spec.md",
+      "revision": 2,
+      "fingerprint": "d0faeceb6b5144bcb78f4cab0b8cd86dd5cfd34730910fe4fb220901f26df165"
+    },
+    "plan": {
+      "path": "specs/014-reserva-estoque/plan.md",
+      "revision": 1,
+      "fingerprint": "e407522768857a5f8086e89ee4cd46a42872ef98bf97f66d9282adfecb348c52"
+    }
+  },
+  "active_ticket": "TK-001",
+  "last_evidence": null,
+  "pending_questions": [],
+  "blockers": [],
+  "next_action": "Validar TK-001 no checkout do projeto consumidor",
+  "authorization_refs": [
+    "user-request:implement-feature"
+  ]
+}
