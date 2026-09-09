@@ -118,7 +118,7 @@ As dez skills são instaladas como pastas com `SKILL.md` e podem ser chamadas ex
 
 ```powershell
 git clone https://github.com/VIDORETTO/dev-skills.git
-cd dev-skills/hybrid
+cd dev-skills/hybrid-spec-kit
 
 python scripts/hybrid.py package-validate --json
 python -m unittest discover -s tests -v
@@ -126,7 +126,7 @@ python -m unittest discover -s tests -v
 
 ### Instalar em um projeto existente
 
-Partindo da pasta `hybrid` deste repositório:
+Partindo da pasta `hybrid-spec-kit` deste repositório:
 
 ```powershell
 python scripts/hybrid.py install `
@@ -293,7 +293,7 @@ O kit diferencia arquivos que devem ser editados de arquivos que apenas refletem
 
 Regra prática: corrija a fonte proprietária e regenere a projeção. Não mantenha `todo.md`, `backlog.md` ou `verification.md` como listas concorrentes.
 
-## Estrutura da pasta `hybrid`
+## Estrutura da pasta `hybrid-spec-kit`
 
 ```text
 .
