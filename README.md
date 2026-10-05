@@ -37,7 +37,7 @@ O objetivo é manter o julgamento semântico nas skills e deixar fatos verificá
 - Artefatos com ownership explícito: `spec.md`/`change.md`, `plan.md`, tickets, `state.json`, evidências e achados.
 - Validações determinísticas para referências, IDs, schemas, dependências, ciclos, projeções e prontidão de pacotes.
 - Uma skill de README que não inventa comandos, versões, badges, arquitetura, licença ou roadmap.
-- Exemplos documentais e uma suíte local de 19 testes para o runtime do Hybrid Spec Kit.
+- Exemplos documentais e uma suíte local de 32 testes para o runtime do Hybrid Spec Kit.
 
 ## 🧠 Como funciona
 
@@ -167,6 +167,7 @@ Execute os comandos a partir de `hybrid-spec-kit` antes da instalação ou a par
 | `ticket update` | Atualizar estado e status de verificação sem alterar o contrato. |
 | `evidence add` | Registrar procedimento, execução, resultado, caminhos, fingerprint e limitações. |
 | `start` | Ler contexto, baseline, checkpoint e inputs alterados. |
+| `session` | Sugerir um marco limitado e, com `--write`, gerar prompt de continuação com controle de crescimento de tickets. |
 | `invalidate` | Encontrar evidências potencialmente obsoletas e, com `--write`, marcá-las. |
 | `check` | Analisar consistência ou convergência sem editar a spec. |
 | `checkpoint write` | Persistir posição, revisão, inputs e próxima ação com guarda otimista. |
@@ -242,7 +243,7 @@ No perfil padrão, a fonte canônica é:
 | Dependências do runner | Biblioteca padrão do Python |
 | Artefatos | Markdown, JSON e SVG |
 | Persistência | Arquivos locais no projeto consumidor |
-| Testes | `unittest`, 19 testes no conjunto atual |
+| Testes | `unittest`, 32 testes no conjunto atual |
 | Integrações remotas | Nenhum tracker remoto, publicação, merge ou deploy no runtime v1 |
 
 O runner calcula invariantes locais e não decide semanticamente se uma alteração atende ao produto. As skills continuam responsáveis por julgamento, perguntas materiais, desenho, execução contextual e revisão.

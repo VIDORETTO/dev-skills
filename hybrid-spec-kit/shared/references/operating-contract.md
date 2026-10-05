@@ -40,3 +40,7 @@ Hash diferente é sinal para análise, não prova de mudança semântica. Depois
 ## Ações externas
 
 O núcleo opera localmente e sem tracker remoto. Publicação, mensagem, merge, deploy, instalação global e mudança de configuração pessoal não fazem parte da primeira versão. Uma skill prepara artefato revisável e só executa ação externa já autorizada e dentro do escopo.
+
+## Execução eficiente e continuidade
+
+A política [bounded-execution.md](bounded-execution.md) limita Goals/marcos, contexto, repetição de verificações e expansão de tickets. Use-a ao iniciar/retomar uma execução, não como motivo para carregar todas as referências. Checkpoints e aceites permanecem canônicos. Encerramento de marco inclui `continuation_prompt` curto e `milestone_status` honesto (`completed`, `partial` ou `blocked`); isso não altera o protocolo de status do esforço nem comprova conclusão. Nenhum limite autoriza enfraquecer testes, marcar trabalho pendente como done ou pausar um Goal sem pedido explícito.

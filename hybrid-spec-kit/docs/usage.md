@@ -27,6 +27,22 @@ python .hybrid/hybrid.py validate --project . --effort 014-feature --json
 python .hybrid/hybrid.py graph --project . --effort 014-feature --json
 ```
 
+## Selecionar o próximo marco e continuar em outra sessão
+
+Depois de aceitar contrato/plano e preparar os tickets, execute:
+
+```text
+python .hybrid/hybrid.py session --project . --effort 014-feature --write --json
+```
+
+A saída inclui `selected_tickets`, dependências condicionais `requires_selected_done`, `limits`, `ticket_growth`, `goal_objective` e `continuation_prompt`. O padrão é até três tickets relacionados; um ticket ativo em andamento fica sozinho até sua conclusão real. Use `--max-tickets 1` para uma fatia grande e `--minutes 15` para uma janela menor. A seleção depende de contrato aceito, plano pronto e checkpoint ativo, mas não substitui `package` nem o julgamento de escopo.
+
+`--write` cria uma projeção protegida em `.hybrid/continuations/<effort>.md`. Sua edição manual é preservada pelo controle de conflitos. A quantidade de tickets da primeira geração é mantida como baseline; `--baseline-tickets <n>` permite registrar uma quantidade original conhecida na migração, sem apagar IDs nem redefinir uma baseline existente silenciosamente. Crescimento acima de 20% emite alerta para reconciliação antes de novos tickets, sem esconder correções obrigatórias.
+
+Crie Goal somente quando solicitado, usando o objetivo limitado proposto: cumprir aceites/revisão do marco ou entregar checkpoint verdadeiro ao chegar ao limite. Ao fim, registre o resultado e cole o prompt curto numa sessão nova. Tickets e esforço continuam pendentes quando a entrega foi parcial. O runner sugere a agenda; tempo/contexto são política do agente, sem watchdog ou abertura automática de sessões.
+
+Reutilize verificações/evidências ainda válidas, concentre checkpoints por comportamento/bloco e execute os gates globais no momento exigido. Planejamento, implementação e avaliação externa longa são marcos separados. A [política completa](../shared/references/bounded-execution.md) define limites, escopo, correções, compactação e conclusão honesta.
+
 ## Executar um ticket sem a conversa original
 
 Passe à executora:

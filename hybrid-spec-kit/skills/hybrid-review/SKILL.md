@@ -24,3 +24,7 @@ Standards asks whether the diff violates documented project rules or exposes a c
 Review tests for independent oracles and weakened expectations, review changed acceptance markers for ownership, and include code in commits, staged, unstaged, and relevant new files. Use `finding add` with origin `standards` or `spec` only for actionable local records; deduplicate before creating correction work. Correcting an in-scope finding is a separate authorized implementation action, followed by the affected checks.
 
 Return the two-axis report path/revision, baseline, findings, evidence refs, limitations, and next action. A passing test suite alone does not make the Spec axis pass, and a style preference alone is not a blocking violation.
+
+## Review a milestone once
+
+Review the selected milestone's diff at one fixed baseline, preserving separate Standards and Spec axes. Re-review changed hunks/interfaces and affected findings after a correction; repeat the full review only when scope/risk changed or a required delivery gate demands it. A style preference is not a new mandatory ticket. Reuse/deduplicate current findings and finish with the checkpoint and short prompt required by [bounded-execution.md](../../shared/references/bounded-execution.md).

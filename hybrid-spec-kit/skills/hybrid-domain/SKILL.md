@@ -23,3 +23,7 @@ If the code and the proposed language disagree, report the exact path/symbol and
 The gate passes when affected artifacts use one consistent vocabulary and every new ADR has a durable reason. Preserve user edits and update the checkpoint when this is part of an active effort. A later phase reads these files by path and revision; it does not need the conversation.
 
 Return changed paths/revisions, terminology conflicts, ADR refs, and the next owner. A request only to read a glossary does not enter this skill.
+
+## Milestone boundary
+
+Within an active milestone, resolve only its terms and durable decisions; do not audit the entire glossary by habit. Apply [bounded-execution.md](../../shared/references/bounded-execution.md) when running as a Goal and return a short continuation at the boundary.

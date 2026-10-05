@@ -23,3 +23,7 @@ Write `plan.md` with the consumed spec revision, chosen approach and real altern
 For wide refactors/migrations use expand–contract and real batches. Create only prerequisites that the next vertical slice needs. If implementation discovers a behavior change, return to `hybrid-specify`; a reversible local detail can update the plan with its reason.
 
 Register any new canonical input with `checkpoint write --input plan=specs/<id>/plan.md`, then run `validate --effort <id> --json` and prepare the next ticket context. Return findings, research refs, plan revision, and limitations. Do not implement application code or change the contract to make the plan fit.
+
+## Bound the execution plan
+
+Identify the initial ticket count, the next milestone's outcome and the required focused/final gates. Plan small diagnostic qualification before expensive full evaluation where compatible with the accepted contract. Keep helper/test/evidence work inside its delivery slice unless independently necessary. Apply [bounded-execution.md](../../shared/references/bounded-execution.md); avoid research or architecture unrelated to the next accepted behavior.

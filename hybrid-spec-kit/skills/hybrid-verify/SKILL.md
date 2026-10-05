@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Hybrid verify
 
-Verification proves observed behavior against acceptance criteria; it does not repair code silently. Read the ticket, contract, plan verification strategy, current instructions, and existing evidence. Run `invalidate --effort <id> --json` before reusing any result.
+Verification proves observed behavior against acceptance criteria; it does not repair code silently. Read the ticket, contract, plan verification strategy, current instructions, and existing evidence. Check freshness with `invalidate --effort <id> --json` before reusing results, once per relevant input set; do not rerun after an unrelated poll/read.
 
 ## Execute and record
 
@@ -26,3 +26,7 @@ Use `not_run` for unavailable tests and state the concrete impediment; use `part
 For business metrics that need real use, report technical delivery separately and leave the metric pending. A screenshot proves one rendered state only; it does not prove persistence or authorization.
 
 Return exact procedures, result IDs, tested revision, limitations, stale refs, and next action. A verification-only request does not modify code.
+
+## Verification economy
+
+Use the [bounded execution policy](../../shared/references/bounded-execution.md). Record one evidence result per meaningful procedure/scope with all applicable AC refs, not one per assertion or poll. Reuse unchanged valid evidence; rerun the affected checks after changes and required global gates at their specified milestone. Qualify an external evaluator with a small diagnostic sample before the accepted full run; preserve its required sample size and stopping rules. Keep long-running evaluation in its own milestone, with process/progress location in the handoff.

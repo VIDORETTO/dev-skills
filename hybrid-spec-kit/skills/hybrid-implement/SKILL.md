@@ -10,7 +10,7 @@ The ticket is the execution context. Do not require the original planning conver
 
 ## Preconditions
 
-For a standard effort, run `package --project . --effort <id> --ticket TK-xxx --json` and `graph --effort <id> --json`. For a compact effort, read and validate the active `change.md` directly; it has no ticket or graph. Confirm readiness, predecessors where applicable, paths/symbols, and input revisions. If a precondition fails, preserve edits and return a focused blocker. Move a standard ticket to `in_progress` through the runner; a state update is not evidence of implementation.
+For a standard effort, run `package --project . --effort <id> --ticket TK-xxx --json`; it already checks the graph. Run `graph` separately only when dependency detail is needed. Do not repeat unchanged readiness checks in the same session. For a compact effort, read and validate the active `change.md` directly; it has no ticket or graph. Confirm readiness, predecessors where applicable, paths/symbols, and input revisions. If a precondition fails, preserve edits and return a focused blocker. Move a standard ticket to `in_progress` through the runner; a state update is not evidence of implementation.
 
 ## Execute one behavior at a time
 
@@ -23,3 +23,7 @@ For a standard effort, run `package --project . --effort <id> --ticket TK-xxx --
 For bug, refactor, migration, prototype, UI, persistence, and external integration routes, follow the conditional contract in the ticket and preserve its limits. For a new decision, incompatible path, unplanned dependency, unavailable required resource, or repeated failure without new evidence, record completed work and return to the planner with path/symbol, step, impact, and decision needed.
 
 Do not commit, publish, merge, deploy, or modify user-owned unrelated changes by default. Return changed files/symbols, ticket state, criteria addressed, executed evidence refs, pending work, and next action. Leave `implemented` until `hybrid-verify` supplies current evidence.
+
+## Session efficiency
+
+Apply [bounded-execution.md](../../shared/references/bounded-execution.md) when executing a Goal or a multi-ticket request. Keep the selected milestone fixed; use only the active ticket's context. Checkpoint at a completed behavior, material failure or handoff, rather than every tool call. Fix in-scope acceptance defects in this ticket; optional improvements go to backlog. At a session limit finish the safe operation, record partial status and give the short continuation prompt. Never claim project completion to retire an older global Goal.

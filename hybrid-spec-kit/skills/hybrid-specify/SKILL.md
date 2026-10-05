@@ -32,3 +32,7 @@ Run `python <package-root>/scripts/hybrid.py validate --project . --effort <id> 
 G1 passes only when behavior and criteria are coherent, testable, bounded, and no critical choice is silently assumed. The user's already-given behavior and authorization remain valid; ask only for a material missing decision.
 
 Return the protocol with contract path/revision, unresolved questions, affected dependents, and next action (`hybrid-plan`/`hybrid-slice`, or compact implementation). Do not publish remotely in this local version.
+
+## Milestone boundary
+
+Preserve the accepted outcome when reconciling a defect; optional enhancements remain outside its contract. In a Goal, finish the selected contract milestone and return the short continuation from [bounded-execution.md](../../shared/references/bounded-execution.md), rather than expanding requirements to continue working.

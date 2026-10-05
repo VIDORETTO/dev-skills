@@ -54,3 +54,12 @@ Os procedimentos completos e os oráculos que devem ficar fora do contexto da ex
 | E31 | Ticket com evidência passada → `todo.md`/`backlog.md` derivados | Passou subcheck determinístico; comportamento pendente | working tree 2026-09-08 + fixture temporário | Cobre geração/hash; não prova uma entrega de produto |
 
 Nenhum caso comportamental foi declarado aprovado por presença de texto ou por schema válido. A passagem de trabalho para outra IA e a medição de custo/economia permanecem pendentes até existir um modelo/contexto autorizado para executar os casos com o campo `expected` oculto.
+
+## Atualização de 05/10/2026: marcos limitados
+
+Revisão avaliada: alterações sobre o commit `5e835e24a7ffb0a9689beb4d605e9b972f20529b` do repositório `VIDORETTO/dev-skills`. O registro de setembro acima permanece histórico.
+
+- `python3 scripts/hybrid.py package-validate --json`: dez skills/oito schemas, sem erros ou avisos.
+- `python3 -m unittest discover -s tests -v`: 32 testes aprovados, sendo os 19 existentes e 13 novos em `test_session.py`.
+- Os testes novos cobrem limite de tickets, prioridade do ticket ativo, dependências condicionais, bloqueios, áreas não relacionadas, contrato/plano/checkpoint, gates finais, conclusão contraditória, projeção protegida, baseline de crescimento e modo compacto.
+- Os limites de tempo/contexto e a redução do número de rodadas do modelo são instruções de condução, não controle de processos do runner. Não foi medido um percentual de aceleração nem declarada aprovação dos casos comportamentais E01–E31 por esses testes.

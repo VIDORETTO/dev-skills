@@ -1368,6 +1368,124 @@ def run_graph(args: argparse.Namespace) -> dict[str, Any]:
     return {"outcome": "completed" if not errors else "failed", "ok": not errors, "effort": directory.name, "errors": errors, **graph}
 
 
+def run_session(args: argparse.Namespace) -> dict[str, Any]:
+    """Suggest a bounded milestone; never changes canonical state or readiness."""
+    project = project_from(args.project)
+    config = load_config(project)
+    directory = resolve_effort(project, config, args.effort)
+    state = load_state(directory, config)
+    metadata, _body, contract = metadata_for_effort(directory)
+    tickets = load_tickets(directory, config)
+    ids = [ticket.get("id") for ticket in tickets]
+    if any(not isinstance(value, str) or not ID_PATTERNS["TK"].match(value) for value in ids) or len(set(ids)) != len(ids):
+        raise HybridError("Session scheduling requires unique valid ticket IDs", "invalid_tickets")
+    if any(ticket.get("status") not in TICKET_STATUSES or not isinstance(ticket.get("requires", []), list)
+           or any(not isinstance(value, str) for value in ticket.get("requires", [])) for ticket in tickets):
+        raise HybridError("Session scheduling requires valid ticket states and dependencies", "invalid_tickets")
+    errors, graph = graph_for_tickets(tickets)
+    if errors:
+        raise HybridError("Cannot schedule an invalid graph: " + "; ".join(errors), "invalid_graph")
+    by_id = {ticket["id"]: ticket for ticket in tickets}
+    pending = [ticket for ticket in tickets if ticket.get("status") not in {"done", "cancelled", "superseded"}]
+    selected: list[dict[str, Any]] = []
+    order = list(graph["order"])
+    active = state.get("active_ticket")
+    if active in order:
+        order.remove(active)
+        order.insert(0, active)
+    plan_path = directory / "plan.md"
+    plan_ready = plan_path.exists() and read_markdown(plan_path)[0].get("status") == "ready"
+    may_schedule = state.get("status") == "active" and metadata.get("status") == "accepted" and plan_ready
+    for ticket_id in order if may_schedule and contract.name != "change.md" else []:
+        ticket = by_id[ticket_id]
+        if ticket.get("status") not in {"ready", "in_progress", "implemented", "verified"}:
+            continue
+        previous = {item["id"] for item in selected}
+        requires = ticket.get("requires", [])
+        if any(by_id[value].get("status") != "done" and value not in previous for value in requires):
+            continue
+        if selected:
+            # Shared acceptance or owned paths are a conservative proxy for one milestone.
+            first = by_id[selected[0]["id"]]
+            shared_ac = set(ticket.get("acceptance_refs", [])) & set(first.get("acceptance_refs", []))
+            areas = [str(area).rstrip("/") for area in ticket.get("owned_areas", [])]
+            first_areas = [str(area).rstrip("/") for area in first.get("owned_areas", [])]
+            shared_area = any(a == b or a.startswith(b + "/") or b.startswith(a + "/") for a in areas for b in first_areas)
+            if not shared_ac and not shared_area:
+                continue
+        selected.append({"id": ticket_id, "path": rel_path(ticket["_path"], project),
+                         "status": ticket["status"], "requires_selected_done": [value for value in requires if value in previous]})
+        if len(selected) >= args.max_tickets or (ticket_id == active and ticket["status"] in {"in_progress", "implemented", "verified"}):
+            break
+    checkpoint = rel_path(state_path(directory, config), project)
+    if state.get("status") in {"waiting_input", "blocked_external", "failed", "cancelled"}:
+        stage = "resolve_checkpoint"
+    elif state.get("status") == "complete":
+        stage = "effort_complete" if not pending else "reconcile_completion"
+    elif selected:
+        stage = "tickets"
+    elif contract.name == "change.md" and metadata.get("status") == "accepted":
+        stage = "compact"
+    elif pending or metadata.get("status") != "accepted" or not plan_ready:
+        stage = "route_checkpoint"
+    else:
+        stage = "delivery_gates"
+    label = ", ".join(item["id"] for item in selected)
+    task = f"execute {label}" if label else {
+        "resolve_checkpoint": "resolva o bloqueio registrado antes de executar",
+        "effort_complete": "confira a entrega e selecione a próxima spec já autorizada, se houver",
+        "reconcile_completion": "reconcilie a conclusão registrada com os tickets pendentes",
+        "compact": "execute o próximo comportamento do change.md",
+        "route_checkpoint": "siga a próxima ação do checkpoint sem criar escopo adicional",
+        "delivery_gates": "verifique os gates finais ainda pendentes",
+    }[stage]
+    prompt = (f"Em {project}, use hybrid-start para continuar {directory.name} pelo checkpoint; "
+              f"{task} em um Goal limitado ao próximo marco e entregue o próximo prompt.")
+    if stage in {"effort_complete", "resolve_checkpoint", "reconcile_completion"}:
+        prompt = f"Em {project}, use hybrid-start em {directory.name}: {task}; preserve o checkpoint."
+    target = safe_project_path(project, Path(".hybrid/continuations") / (directory.name + ".md"))
+    baseline_match = re.search(r"(?m)^Baseline de tickets: (\d+)\.$", target.read_text(encoding="utf-8")) if target.exists() else None
+    saved_baseline = int(baseline_match.group(1)) if baseline_match else None
+    if args.baseline_tickets is not None and (args.baseline_tickets < 1 or args.baseline_tickets > len(tickets)):
+        raise HybridError("Ticket baseline must be between 1 and the current total", "invalid_ticket_baseline")
+    if saved_baseline and args.baseline_tickets is not None and args.baseline_tickets != saved_baseline:
+        raise HybridError("Preserve the existing ticket baseline; reconcile its provenance before changing it", "ticket_baseline_conflict")
+    baseline_count = saved_baseline or args.baseline_tickets or len(tickets)
+    growth_percent = round(100 * (len(tickets) - baseline_count) / baseline_count, 1) if baseline_count else 0
+    growth_guard = {"baseline_count": baseline_count, "current_count": len(tickets),
+                    "growth_percent": growth_percent, "requires_reconciliation": len(tickets) > baseline_count * 1.2}
+    warnings = []
+    if growth_guard["requires_reconciliation"]:
+        warnings.append("Ticket count grew over 20%: reconcile necessity and duplicate work before further expansion; preserve existing IDs and required defects.")
+    if len(tickets) >= 10 and sum(ticket.get("type") == "corrective" for ticket in tickets) / len(tickets) > 0.2:
+        warnings.append("Many corrective tickets: reconcile scope/duplicate correction work before adding more. This is not proof of unnecessary work.")
+    result = {
+        "outcome": "completed", "effort": directory.name, "stage": stage,
+        "selected_tickets": selected, "total_tickets": len(tickets), "pending_tickets": len(pending),
+        "checkpoint": checkpoint, "checkpoint_revision": state.get("revision"),
+        "checkpoint_next_action": str(state.get("next_action", ""))[:400],
+        "checkpoint_next_action_truncated": len(str(state.get("next_action", ""))) > 400,
+        "limits": {"max_tickets": args.max_tickets, "soft_minutes": args.minutes,
+                   "context_used_percent": 60, "planned_compactions": 0},
+        "readiness_checked": False, "ticket_growth": growth_guard, "warnings": warnings, "continuation_prompt": prompt,
+        "goal_objective": (f"Trabalhar em {label or stage} no esforço {directory.name} até cumprir os aceites e revisão, "
+                           f"ou alcançar {args.minutes} minutos/60% do contexto; entregar checkpoint verdadeiro e prompt curto. "
+                           "Não ampliar escopo nem declarar tickets/projeto concluídos sem evidência."),
+        "note": "Scheduling only. Limits are agent policy; this command does not monitor context, stop processes, create Goals or certify completion.",
+    }
+    if args.write:
+        content = ("# Continuação Hybrid (gerada)\n\n"
+                   f"Checkpoint: {checkpoint}; revisão: {state.get('revision')}.\n\n"
+                   + (f"Baseline de tickets: {baseline_count}.\n\n" if baseline_count else "")
+                   + f"Crescimento: {growth_percent}% ({len(tickets)} atuais); reconciliar: {str(growth_guard['requires_reconciliation']).lower()}.\n\n"
+                   f"Próximo marco: {label or stage}. Sugestão; executar prontidão antes de editar.\n\n"
+                   f"Limites: até {args.max_tickets} tickets; {args.minutes} minutos; 60% do contexto; sem compactação planejada.\n\n"
+                   f"{prompt}\n")
+        guarded_generated_write(project, target, content, args.force)
+        result["written"] = rel_path(target, project)
+    return result
+
+
 def run_render(args: argparse.Namespace) -> dict[str, Any]:
     project = project_from(args.project)
     config = load_config(project)
@@ -2333,6 +2451,14 @@ def build_parser() -> argparse.ArgumentParser:
     package.add_argument("--write", action="store_true")
     package.add_argument("--force", action="store_true")
 
+    session = sub.add_parser("session", help="Suggest a bounded milestone and short continuation without changing state")
+    add_paths_argument(session)
+    session.add_argument("--max-tickets", type=int, choices=[1, 2, 3], default=3)
+    session.add_argument("--minutes", type=int, choices=range(1, 121), default=30)
+    session.add_argument("--baseline-tickets", type=int, help="Original accepted ticket count; preserved in the guarded continuation")
+    session.add_argument("--write", action="store_true", help="Write a guarded continuation projection")
+    session.add_argument("--force", action="store_true")
+
     install = sub.add_parser("install", help="Install skills and local shared resources into a project")
     install.add_argument("--project", default=".")
     install.add_argument("--skill-root", help="Destination such as .agents/skills")
@@ -2357,6 +2483,8 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return run_validate(args)
     if command == "graph":
         return run_graph(args)
+    if command == "session":
+        return run_session(args)
     if command == "render":
         return run_render(args)
     if command == "start":

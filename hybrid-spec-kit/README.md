@@ -254,6 +254,20 @@ python .hybrid/hybrid.py check `
 
 Alterações em contrato, plano, código sob teste ou ambiente podem tornar evidências antigas obsoletas. O runner identifica a divergência; a classificação semântica continua sendo uma decisão do fluxo.
 
+## Goals limitados e continuação
+
+Use uma sessão de planejamento para fixar contrato/plano/tickets e sessões novas para executar os próximos marcos. Um pedido de concluir o projeto inteiro segue pelo checkpoint, sem repetir descoberta nem ampliar requisitos a cada continuação.
+
+```text
+python .hybrid/hybrid.py session --project . --effort 014-reserva-estoque --write --json
+```
+
+O comando sugere até três tickets relacionados, prioriza o ticket ativo e grava `.hybrid/continuations/<effort>.md` com um prompt curto para a próxima sessão. Verifique a prontidão antes de editar; a sugestão não altera `state.json` nem aprova evidência. O agente encerra no próximo ponto seguro aos 30 minutos ou 60% do contexto usado, entrega trabalho parcial honestamente e evita compactações planejadas.
+
+A primeira contagem observada de tickets vira baseline. Para uma migração cuja quantidade original seja conhecida, forneça `--baseline-tickets <n>` uma vez. Crescimento acima de 20% exige reconciliar causas antes de mais expansão; defeitos necessários e IDs existentes são preservados. Correções do aceite permanecem no ticket quando válido, e melhorias opcionais ficam no backlog.
+
+Os limites orientam o agente: o runner não monitora tempo/contexto, cria Goals, interrompe processos ou abre sessões. A entrega parcial só encerra um Goal se essa alternativa estiver prevista no seu objetivo; um Goal antigo global não é declarado concluído artificialmente. Veja a [política de execução limitada](shared/references/bounded-execution.md) e o [uso operacional](docs/usage.md).
+
 ## Runner determinístico
 
 O arquivo [`scripts/hybrid.py`](scripts/hybrid.py) usa somente a biblioteca padrão do Python. Ele não tenta substituir o julgamento das skills: sua função é manter invariantes locais e produzir saídas reproduzíveis.
@@ -270,6 +284,7 @@ O arquivo [`scripts/hybrid.py`](scripts/hybrid.py) usa somente a biblioteca padr
 | `ticket update` | transição explícita de estado do ticket |
 | `evidence add` | procedimento, execução, caminhos, fingerprint, revisão e limitações |
 | `start` | rota de retomada, baseline, inputs atuais e próxima ação |
+| `session` | sugestão de marco limitado, baseline de tickets e continuação protegida; não comprova prontidão |
 | `invalidate` | evidências e dependentes potencialmente obsoletos |
 | `check` | consistência ou convergência dos artefatos |
 | `dedupe` | lacunas repetidas por chave estável |
@@ -316,7 +331,8 @@ Regra prática: corrija a fonte proprietária e regenere a projeção. Não mant
 │   └── templates/                # templates de artefatos
 ├── skills/                       # dez skills distribuíveis
 └── tests/
-    └── test_runner.py            # testes do runtime e fixtures
+    ├── test_runner.py            # testes do runtime e fixtures
+    └── test_session.py           # marcos, dependências e continuação
 ```
 
 ## Exemplos

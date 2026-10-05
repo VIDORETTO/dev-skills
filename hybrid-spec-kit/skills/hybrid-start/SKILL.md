@@ -13,7 +13,7 @@ Use this as the entrypoint. It is a router with a small reconnaissance pass, not
 1. Read the repository's applicable `AGENTS.md`, `CLAUDE.md`, or equivalent instructions and the user's current request.
 2. Inspect `git status --short --branch`, the repository root, existing `CONTEXT.md`/`CONTEXT-MAP.md`, ADRs, `docs/agents/`, `.hybrid/config.json`, and `specs/` only as far as the request needs.
 3. If an effort is named, run `python <package-root>/scripts/hybrid.py start --project . --effort <id> --json`. After local installation, the equivalent is `python .hybrid/hybrid.py start --project . --effort <id> --json`.
-4. Run `validate --json` and `graph --effort <id> --json` when an effort already exists. Treat a failed check as a routing signal, not as permission to rewrite artifacts.
+4. For an existing effort, read [bounded-execution.md](../../shared/references/bounded-execution.md) and run `session --effort <id> --json` to select the next bounded milestone. Run readiness validation once before editing; reuse it only while its inputs are unchanged. A failed check routes repair to its owner; it does not authorize rewriting contracts.
 
 Record a Git SHA before implementation when Git is available. With no commits, record an inventory fingerprint and say that the baseline is not a SHA. Include staged, unstaged, untracked, and user-owned work in the reconnaissance. If `start` reports canonical inputs that are not tracked in `state.json`, register them with `checkpoint write --input name=path`. Never clean, reset, stash, or overwrite existing work.
 
@@ -29,10 +29,14 @@ Record a Git SHA before implementation when Git is available. With no commits, r
 - Research/prototype: question, experiment and limit, evidence, decision; mark prototype status explicitly.
 - Ready diff: fixed baseline, separate Standards and Spec review.
 
-Choose compact, standard, or expanded by uncertainty and risk, not by line count. If an ambiguity changes behavior, data limits, public compatibility, or authorization, return `needs_input` with concrete options. Record reversible assumptions and continue independent work.
+Choose compact, standard, or expanded by uncertainty and risk, not by line count. An existing accepted contract goes directly to its recorded next action; do not repeat discovery/specification/planning by habit. Small known changes use compact mode. If an ambiguity changes behavior, data limits, public compatibility, or authorization, return `needs_input` with concrete options. Record reversible assumptions and continue independent work.
 
 ## Output and resumption
 
 Return the protocol in [operating-contract.md](../../shared/references/operating-contract.md): `outcome`, changed artifacts/revisions, findings, evidence refs, and a concrete `next_action`. Read `state.json` before resuming. If inputs changed, run `invalidate --write`, reconcile the affected artifact owner, and do not reuse stale evidence. If no input or evidence changed, continue from the recorded next action without repeating interviews or approvals.
 
 Do not decide the product, impose a stack, publish to a tracker, or implement application code in this skill.
+
+## Bounded delivery
+
+A broad “finish everything” request is delivered through bounded milestones, not one unlimited session. Use at most three related tickets and stop at the first session limit in bounded-execution. Planning and long evaluation are separate milestones. Do not create a Goal unless requested. At the boundary, persist an honest checkpoint and return one short prompt for a new session, including the next authorized effort when this one is complete.

@@ -27,3 +27,7 @@ Write the local discovery/brief artifact only when it has information a later ph
 Finish when no unresolved ambiguity materially changes the next behavior, validation, or authorization. Future-work questions may remain open. If the user decides not to build, record the reason and close the evaluation without manufacturing a spec.
 
 Return the shared protocol, including `needs_input` for a material choice and `blocked` for an external resource. A resumed discovery reads its checkpoint and does not repeat answered questions.
+
+## Milestone boundary
+
+For a Goal, bound discovery to the next useful decision/artifact using [bounded-execution.md](../../shared/references/bounded-execution.md). Do not interview again about resolved choices or explore future features to keep the session active. At the boundary return a checkpoint and short continuation prompt.

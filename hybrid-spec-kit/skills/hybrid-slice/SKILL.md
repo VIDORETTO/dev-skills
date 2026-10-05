@@ -26,3 +26,7 @@ Do not mark a ticket `ready` while it asks the executor to choose authentication
 Run `validate`, `graph`, and `package` for each candidate. The graph must be acyclic, every acceptance in the selected scope must have a ticket, and the frontier must be explainable. Treat `owned_area_overlaps` as a coordination signal: serialize the tickets or add a real blocker when concurrent writes could conflict. Run `render --view todo` and `render --view backlog`; generated views are not edit targets. A write conflict means preserve the existing edit and reconcile explicitly.
 
 G3 passes only for current inputs, satisfied blockers, verified references, and complete execution packages. Return ticket paths/revisions, graph/frontier, generated views, findings, and next action. No tracker or remote publication is performed in this version.
+
+## Keep the delivery graph small
+
+Testing, review, instrumentation and local helpers belong inside the behavior ticket unless they deliver an independent outcome or genuine dependency. Prefer a few complete vertical slices over one ticket per file, test or audit. Record the initial ticket count and each later addition's reason in the existing plan/checkpoint; over 20% growth triggers reconciliation, not deletion of required work. Use findings/subtasks or reopen an existing ticket for its acceptance defects where valid. Apply [bounded-execution.md](../../shared/references/bounded-execution.md) to group the next milestone into at most three related tickets; never enlarge accepted scope merely to make a session continue.

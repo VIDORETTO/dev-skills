@@ -10,7 +10,7 @@ This skill has two explicit modes. `consistency` compares contract, plan, ticket
 
 ## Run deterministic checks
 
-Read the relevant effort, state, instructions, and [operating-contract.md](../../shared/references/operating-contract.md). Run:
+Read the relevant effort, state, instructions, and [operating-contract.md](../../shared/references/operating-contract.md). Run `validate` once for the relevant input set and only the requested check mode (consistency for artifact changes; convergence for code/evidence gaps). The available commands are:
 
 ```text
 python <package-root>/scripts/hybrid.py validate --project . --effort <id> --json
@@ -27,3 +27,7 @@ Report requirements without tickets, acceptance criteria without a strategy/evid
 Do not change `spec.md`, `plan.md`, or acceptance markers in this skill. A consistency request reports only; an authorized implementation cycle can route routine documentation fixes to their owner. If repeated convergence has no new evidence, revisit the hypothesis instead of creating another identical task.
 
 Return mode, findings, created/deduplicated IDs, evidence refs, and the next gate. Preserve `state.json` and use `invalidate --write` when an input change affects evidence.
+
+## Convergence limit
+
+With identical baseline, inputs and evidence, reuse the prior findings; do not open another convergence cycle. Deduplicate defects and route necessary in-scope corrections to an existing open ticket. Apply the ticket-growth guard in [bounded-execution.md](../../shared/references/bounded-execution.md); future enhancements do not expand the active milestone.

@@ -9,3 +9,7 @@ Execute um caso por vez: red por comportamento ausente/incorreto, green com o m�
 Mock somente no que realmente varia na seam: serviço externo, relógio, aleatoriedade, filesystem ou banco quando não houver substituto representativo. Não simule seus próprios módulos internos para obter uma passagem artificial. Se houver dois adapters reais (produção e teste), registre por que a seam existe; um único adapter pode ser indirection sem valor.
 
 Dispensa de novo teste é exceção documentada para ajuste editorial, inspeção visual trivial, experimento descartável ou comportamento já coberto adequadamente. Ela não dispensa as verificações obrigatórias do projeto.
+
+## Custo proporcional
+
+Execute red/green para o comportamento novo e regressão afetada; não escreva testes que apenas reproduzem implementação nem testes novos para alterações editoriais reversíveis. Reuse cobertura válida quando já observa o comportamento. A suíte global segue os gates obrigatórios do projeto e o impacto real das mudanças. Uma avaliação longa exige runner estável e inputs congelados; qualificação pequena não substitui a amostra integral aceita. Veja [bounded-execution.md](bounded-execution.md) para handoff sem repetição de trabalho.
