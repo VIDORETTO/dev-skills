@@ -6,28 +6,27 @@ disable-model-invocation: true
 
 # Hybrid discovery
 
-Turn the demand into enough shared understanding for the next deliverable. Keep discovery proportional; a clear small function does not need a product interview.
+**Scope:** only for work that passed the `hybrid-start` scope gate. A clear small request skips discovery entirely.
 
-## Inputs and reading
+Reach enough shared understanding for the next deliverable, and stop there.
 
-Read the request, the `hybrid-start` reconnaissance, existing project instructions, relevant glossary and ADRs, and only the code/documents needed to test the stated assumptions. Read [routing.md](../../shared/references/routing.md) and [vocabulary.md](../../shared/references/vocabulary.md).
+## Interview in rounds
 
-## Process
+1. Facts are your job: read the repository, instructions, `CONTEXT.md` and ADRs as far as a question needs. Decisions belong to the user.
+2. Build the decision tree. The **frontier** is every decision whose prerequisites are settled. Ask the whole frontier in one round, most impactful first, each with your recommendation:
 
-1. Classify facts that can be inspected from choices that belong to the user. Check facts against the repository instead of asking for them.
-2. State the problem, actors/consumer, desired result, included and excluded scope, constraints, non-goals, dependencies, and success signal.
-3. Build a decision tree. Rank questions by impact × uncertainty, group independent questions, and wait for a dependent answer. Recommend an option and state its consequence. Never invent a critical choice to keep moving.
-4. For an idea, include evidence for and against it, the cost of inaction, a bounded alternative, and a continue/stop criterion. For a bug, distinguish expected behavior from observed behavior and record the reproduction. For research, define an experiment and stopping limit. For migration, list consumers and expand–contract assumptions.
-5. Record resolved decisions, reversible hypotheses with a check, and material questions. Do not implement while interviewing.
+   ```text
+   ❓ Q1 — <title>: <question and options>
+   ➡️ <recommended answer and its consequence>
+   ```
 
-Write the local discovery/brief artifact only when it has information a later phase must consume; preserve existing text and revisions. Hand domain terms and durable decisions to `hybrid-domain`, then hand behavior to `hybrid-specify`. Do not put technical solution details in the behavior contract.
+3. Wait for answers, recompute the frontier, and ask the next round. A question that depends on an open one waits. Record a reversible assumption instead of asking about it.
+4. By type: an idea records evidence for/against, cost of inaction and a stop criterion; a bug records expected vs observed behavior and the reproduction; research records the experiment and its limit; a migration lists consumers and expand–contract assumptions.
 
-## Exit gate
+When the answer belongs to someone who is not in the conversation (client, PO, another team), write `specs/<id>/questions.md`: purpose, one paragraph of context, one single-idea question per heading, most important first, answer stub under each. Return `needs_input` pointing to it.
 
-Finish when no unresolved ambiguity materially changes the next behavior, validation, or authorization. Future-work questions may remain open. If the user decides not to build, record the reason and close the evaluation without manufacturing a spec.
+## Exit
 
-Return the shared protocol, including `needs_input` for a material choice and `blocked` for an external resource. A resumed discovery reads its checkpoint and does not repeat answered questions.
+Done when no open question changes the next behavior, validation, or authorization. Write a discovery artifact only if a later phase consumes it. Hand durable terms to `hybrid-domain` and behavior to `hybrid-specify`. If the user decides not to build, record the reason and stop. A resumed discovery reads its checkpoint and asks nothing already answered.
 
-## Milestone boundary
-
-For a Goal, bound discovery to the next useful decision/artifact using [bounded-execution.md](../../shared/references/bounded-execution.md). Do not interview again about resolved choices or explore future features to keep the session active. At the boundary return a checkpoint and short continuation prompt.
+Return `outcome` (`needs_input` for a material choice), artifacts, and `next_action`.

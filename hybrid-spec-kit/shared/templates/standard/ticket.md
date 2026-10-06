@@ -13,9 +13,14 @@ spec_revision: 1
 plan_revision: 1
 owned_areas: [src/area, tests/area]
 verification_status: not_run
+review_status: pending
 ---
 
 # TK-001 — [Título da fatia]
+
+<!-- Obrigatórias: Objetivo e limites, Leitura em ordem, Exemplos de aceite, Validação.
+     As demais são opcionais: apague a seção quando não houver nada específico deste ticket.
+     O ciclo red/green, a condição de retorno e o relatório de saída já estão em hybrid-implement. -->
 
 ## Objetivo e limites
 
@@ -25,55 +30,24 @@ Não inclui: [exclusões específicas desta fatia].
 
 ## Leitura em ordem
 
-1. `[path]` → `[symbol/section]` — [por que esta leitura é necessária].
-2. `[path]` → `[symbol/section]` — [padrão existente a preservar].
-
-## Decisões já resolvidas
-
-- [Abordagem escolhida e motivo curto].
-- Liberdade local: [detalhes reversíveis que a executora pode escolher].
-- Alternativas descartadas: [somente as relevantes para não reabrir a decisão].
-
-## Mapa de alterações
-
-- Existente: `[path]` → `[symbol]` — [alteração prevista].
-- Novo: `[path]` → `[NewSymbol]` — criar neste ticket.
-- Fora da fatia: `[path/area]` — não alterar.
-
-## Contrato técnico
-
-- Entradas: [tipos, pré-condições e exemplos]
-- Saídas: [tipos e resultado observável]
-- Invariantes: [o que permanece verdadeiro]
-- Erros: [tipo/resultado e quando ocorre]
-- Efeitos: [efeitos observáveis, ordem e idempotência]
-- Compatibilidade/concorrência: [quando aplicável]
+1. `[path]` → `[symbol/section]` — [por que ler].
 
 ## Exemplos de aceite
 
-- **AC-001**: estado inicial [x] + entrada [y] → resultado esperado [z]; efeito permitido [a]; efeito proibido [b]. O oráculo vem de [spec/exemplo independente].
-
-## Dependências e sequência de execução
-
-Depende de: [TK IDs ou `nenhum`].
-
-- [ ] TK-001.1 Escrever e executar o primeiro caso comportamental; observar red pelo motivo esperado.
-- [ ] TK-001.2 Implementar o mínimo para green de [AC].
-- [ ] TK-001.3 Executar regressão definida e conferir efeitos colaterais.
-- [ ] TK-001.4 Registrar checkpoint e evidência, sem marcar checklist de reviewer.
+- **AC-001**: estado [x] + entrada [y] → resultado [z]; efeito proibido [b]. Oráculo: [spec/exemplo independente].
 
 ## Validação
 
-- Diretório: `[project root or subdirectory]`
-- Comando/procedimento exato: `[command]`
-- Estado esperado: [resultado observável]
-- Comando identificado na configuração mas não executado: [none ou comando + motivo]
-- Distinguir defeito de ambiente: [diagnóstico]
+`[comando exato]`, executado em `[diretório]`.
 
-## Condição de retorno à planejadora
+## Decisões já resolvidas (opcional)
 
-Pare e devolva evidência focalizada se o contrato ou caminho estiver incompatível, surgir decisão comportamental/arquitetural nova, faltar recurso obrigatório ou a dependência não estiver satisfeita. Preserve o teste e o progresso.
+- [Abordagem e motivo curto]. Liberdade local: [detalhes reversíveis].
 
-## Relatório de saída
+## Mapa de alterações (opcional)
 
-Relate arquivos/símbolos alterados, critérios atendidos, resultados executados, `EV` refs, pendências, desvios e próxima ação. Não declare `done` sem verificação passada e revisão requerida.
+- Existente: `[path]` → `[symbol]`. Novo: `[path]` → `[NewSymbol]`. Fora da fatia: `[path]`.
+
+## Contrato técnico (opcional)
+
+Entradas, saídas, invariantes, erros, efeitos, compatibilidade/concorrência, quando não forem óbvios pelo contrato.

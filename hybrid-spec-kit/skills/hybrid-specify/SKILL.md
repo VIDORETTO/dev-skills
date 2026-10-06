@@ -6,33 +6,25 @@ disable-model-invocation: true
 
 # Hybrid specify
 
-Own the behavior contract. `spec.md` is canonical for standard/expanded efforts; `change.md` is canonical for a compact effort. Do not choose the whole technical architecture here.
+**Scope:** only for work that passed the `hybrid-start` scope gate. Direct work needs no contract.
 
-## Read first
+Own the behavior contract: `spec.md` (standard/expanded) or `change.md` (compact). Architecture belongs to `hybrid-plan`.
 
-Read the discovery result, `CONTEXT.md`/map, applicable ADRs and repository instructions, current code facts needed to avoid describing the wrong system, and [operating-contract.md](../../shared/references/operating-contract.md). Read [the standard template](../../shared/templates/standard/spec.md) or [the compact template](../../shared/templates/compact/change.md) as appropriate.
+## Write
 
-## Write the contract
+Start from [the standard template](../../shared/templates/standard/spec.md) or [the compact template](../../shared/templates/compact/change.md). Capture:
 
-Capture:
+- problem, consumer, desired result, and prioritized journeys, or a direct function contract (inputs, outputs, invariants, errors, units, rounding, compatibility);
+- included scope and explicit exclusions;
+- stable `FR-xxx` requirements and observable `AC-xxx` criteria covering primary, alternate, error, and relevant non-functional cases;
+- hypotheses and dependencies, with delivery-verifiable success kept apart from post-delivery metrics.
 
-- problem, desired result, consumer/actors, prioritized journeys or a direct function contract;
-- included scope, explicit exclusions, errors, limits, compatibility, idempotency and concurrency when relevant;
-- stable `FR-xxx` requirements and `AC-xxx` observable criteria, including primary, alternate, error, recovery, and relevant non-functional cases;
-- hypotheses, dependencies, product decisions, and delivery-verifiable success separated from post-delivery metrics.
+Before closing, scan for gaps that would change behavior: scope and roles, data identity and lifecycle, error/empty states, limits and scale, security and privacy, external failure modes, concurrency, and testability of each `AC`. Ask only about gaps that change behavior, using the round format of `hybrid-discover`, and write each answer into the contract.
 
-For a function, define inputs, outputs, invariants, errors, units, rounding, and compatibility directly. Do not invent a persona when the caller contract is clearer. Keep technical design, file structure, adapters, and test seams in `plan.md`; keep prototype state explicit.
+## Rules
 
-Never renumber an existing ID because a new item was inserted. Increment contract `revision` for a meaningful update. A change to semantics requires reconciliation with plans, tickets, tests, and evidence; an editorial change may retain executable evidence with a recorded reason. If acceptance changes, stop downstream reuse until invalidation is evaluated.
+Keep IDs stable: a new item gets the next number, and existing ones are never renumbered. Increment `revision` for a meaningful change; a semantic change requires reconciling plan, tickets, and evidence. Compact mode keeps everything in `change.md`.
 
-Run `python <package-root>/scripts/hybrid.py validate --project . --effort <id> --json` after editing. In compact mode do not create parallel `plan.md`, `tasks.md`, or tickets merely to imitate standard ceremony.
+Run `hybrid validate --effort <id>` once after editing.
 
-## Gate and output
-
-G1 passes only when behavior and criteria are coherent, testable, bounded, and no critical choice is silently assumed. The user's already-given behavior and authorization remain valid; ask only for a material missing decision.
-
-Return the protocol with contract path/revision, unresolved questions, affected dependents, and next action (`hybrid-plan`/`hybrid-slice`, or compact implementation). Do not publish remotely in this local version.
-
-## Milestone boundary
-
-Preserve the accepted outcome when reconciling a defect; optional enhancements remain outside its contract. In a Goal, finish the selected contract milestone and return the short continuation from [bounded-execution.md](../../shared/references/bounded-execution.md), rather than expanding requirements to continue working.
+G1 passes when behavior and criteria are coherent, testable, bounded, and no critical choice is silently assumed. Return contract path/revision, open questions, affected dependents, and `next_action` (`hybrid-plan`, or `hybrid-implement` for compact).

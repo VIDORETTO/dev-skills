@@ -1,30 +1,36 @@
 ---
 name: hybrid-review
-description: Review a hybrid effort against repository Standards and accepted Spec in separate passes over a fixed baseline, including committed, staged, unstaged, and relevant new files. Use for pre-commit review, work-in-progress review, or a ready diff.
+description: Review a hybrid milestone against repository Standards and the accepted Spec in two independent passes over a fixed baseline, including committed, staged, unstaged, and new files. Use once per milestone, for a ready diff, or for a review-only request.
 disable-model-invocation: true
 ---
 
 # Hybrid review
 
-Review is an evidence/reporting phase. It does not implement fixes, publish comments, merge, or deploy when the request is review-only.
+**Scope:** once per milestone in standard/expanded efforts, or for a review-only request. A compact change is reviewed inside `hybrid-implement`.
 
-## Fix the scope
+Review reports; fixes are a separate, authorized implementation step.
 
-Read the request, effort state, `review.md` if present, contract and plan, applicable `AGENTS.md`/standards, and [operating-contract.md](../../shared/references/operating-contract.md). Resolve and record one baseline before inspecting the diff:
+## Fix the scope (one command)
 
-- Git repository: use the supplied SHA/branch/tag or current `HEAD` only when that is the explicitly requested baseline; capture `git rev-parse`, `git diff <baseline>...HEAD`, `git diff --cached`, `git diff`, and `git status --short` so new files are not hidden.
-- No Git: record an inventory fingerprint and the exact included paths. Do not claim a SHA.
+Use the baseline from the checkpoint (or the one the user gives) and capture everything at once:
 
-Never call `git diff HEAD` alone evidence that there are no changes. Preserve the baseline across correction rounds.
+```text
+git status --short && git diff <baseline> --stat && git diff <baseline>
+```
+
+`git diff <baseline>` covers committed, staged, and unstaged changes; `git status` lists new untracked files, which you read directly. Without Git, record an inventory fingerprint and the included paths.
 
 ## Two independent axes
 
-Standards asks whether the diff violates documented project rules or exposes a contextualized design risk. A smell baseline is a judgement call and a repository standard overrides it. Spec asks whether accepted requirements/acceptance are missing, partial, incorrect, or exceeded; if no spec exists, report that limit instead of manufacturing one. Keep axes and severities separate. Every finding cites file/symbol/hunk, rule or `FR`/`AC`, consequence, and state.
+Run each axis in its own subagent when the harness offers one (so neither contaminates the other); otherwise run them sequentially and keep the notes apart.
 
-Review tests for independent oracles and weakened expectations, review changed acceptance markers for ownership, and include code in commits, staged, unstaged, and relevant new files. Use `finding add` with origin `standards` or `spec` only for actionable local records; deduplicate before creating correction work. Correcting an in-scope finding is a separate authorized implementation action, followed by the affected checks.
+- **Standards:** documented repository rules first. Then a judgement-call baseline, overridden by any repository rule: unclear names, duplicated logic, feature envy, data clumps, primitive obsession, repeated switches, shotgun surgery, speculative generality, middle man. Skip anything tooling already enforces.
+- **Spec:** each `FR`/`AC` missing, partial, wrong, or exceeded; weakened expected values in tests; non-independent oracles. With no spec, say so.
 
-Return the two-axis report path/revision, baseline, findings, evidence refs, limitations, and next action. A passing test suite alone does not make the Spec axis pass, and a style preference alone is not a blocking violation.
+Each finding cites file/symbol, rule or `AC`, consequence, and severity. Report the axes under separate headings and never rerank across them. Persist a finding with `hybrid finding add` only when it needs tracking.
 
-## Review a milestone once
+## Close the gate
 
-Review the selected milestone's diff at one fixed baseline, preserving separate Standards and Spec axes. Re-review changed hunks/interfaces and affected findings after a correction; repeat the full review only when scope/risk changed or a required delivery gate demands it. A style preference is not a new mandatory ticket. Reuse/deduplicate current findings and finish with the checkpoint and short prompt required by [bounded-execution.md](../../shared/references/bounded-execution.md).
+When the Spec axis has no blocking finding, mark each reviewed ticket done in one call: `hybrid ticket update --effort <id> --ticket TK-xxx --status done --review passed`. With blocking findings, use `--review changes_requested` and route the fix to the ticket. After a fix, re-review only the changed hunks.
+
+Return baseline, findings per axis, tickets closed, and `next_action`.

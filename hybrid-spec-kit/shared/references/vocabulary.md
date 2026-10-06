@@ -1,6 +1,6 @@
 # Vocabulário compartilhado
 
-Use estes termos com o significado abaixo em todas as dez skills.
+Use estes termos com o significado abaixo em todas as skills.
 
 | Termo | Significado operacional |
 | --- | --- |
@@ -16,7 +16,8 @@ Use estes termos com o significado abaixo em todas as dez skills.
 | Adapter | Implementação concreta que ocupa um Seam, inclusive um substituto de teste controlado. |
 | Ticket | Fatia verificável, com aceites, dependências e pacote de execução. |
 | Tarefa | Passo interno de um ticket; pode citar caminhos e comandos. |
-| Gate | Condição para avançar, automática ou dependente de decisão humana. |
+| Gate | Condição para avançar. G1: contrato coerente e testável. G2: plano com seams, oráculos e comandos. G3: ticket com pacote pronto. G4: evidência atual aprovada e revisão `passed` (exigida para `done`). |
+| Trabalho direto | Pedido que não passa no filtro de escopo; executado sem artefatos nem runner. |
 | Evidência | Resultado observado, com origem, ambiente e revisão dos insumos. |
 | Baseline | Ponto fixo que inicia um escopo de revisão. |
 | Checkpoint | Posição persistida e próxima ação válida. |

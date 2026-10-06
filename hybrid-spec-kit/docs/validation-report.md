@@ -63,3 +63,17 @@ Revisão avaliada: alterações sobre o commit `5e835e24a7ffb0a9689beb4d605e9b97
 - `python3 -m unittest discover -s tests -v`: 32 testes aprovados, sendo os 19 existentes e 13 novos em `test_session.py`.
 - Os testes novos cobrem limite de tickets, prioridade do ticket ativo, dependências condicionais, bloqueios, áreas não relacionadas, contrato/plano/checkpoint, gates finais, conclusão contraditória, projeção protegida, baseline de crescimento e modo compacto.
 - Os limites de tempo/contexto e a redução do número de rodadas do modelo são instruções de condução, não controle de processos do runner. Não foi medido um percentual de aceleração nem declarada aprovação dos casos comportamentais E01–E31 por esses testes.
+
+## Atualização de 06/10/2026: kit enxuto
+
+Revisão avaliada: alterações sobre `10dce98` no branch `claude/vigilant-clarke-0ndr1f`. Motivação e estimativas em [`comparative-review.md`](comparative-review.md).
+
+- `python3 -m unittest discover -s tests -v`: 49 testes aprovados (32 anteriores, 2 deles ajustados para registrar a revisão antes de `done`, mais 17 novos em `test_lean.py` e `test_bench.py`).
+- `package-validate`: 10 skills e 8 schemas, sem erros. Os dois exemplos continuam passando em `validate`.
+- Medição estática:
+  - skills de ~32 mil para ~21,5 mil caracteres (−33%);
+  - leitura obrigatória da rota compacta de ~11–13 mil para ~1,5 mil tokens;
+  - `bounded-execution.md` de ~1.540 para ~395 tokens;
+  - template de ticket de ~670 para ~370 tokens;
+  - saída do `next` no exemplo padrão: ~360 tokens, contra ~2,4 mil das quatro chamadas que ele substitui.
+- O overhead real (turnos, tempo e custo por sucesso) ainda não foi medido com modelo. `scripts/bench_ab.py` está pronto e foi testado com um `claude` falso.

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Plan"
+  short_description: "Design modules, seams and verification"
+policy:
+  allow_implicit_invocation: false

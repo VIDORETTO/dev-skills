@@ -1,29 +1,42 @@
 ---
 name: hybrid-implement
-description: Execute one ready hybrid ticket as a focused vertical slice with behavior-first tests, minimal code, checkpoints, and honest status updates. Use when implementing an accepted ticket in a standard effort or the equivalent compact change.
+description: Execute one ready hybrid ticket (or a compact change) as a focused vertical slice with behavior-first tests, minimal code, runner-recorded evidence, and honest status. Use when implementing an accepted ticket or the equivalent compact change.
 disable-model-invocation: true
 ---
 
 # Hybrid implement
 
-The ticket is the execution context. Do not require the original planning conversation. Read [execution-package.md](../../shared/references/execution-package.md) and [testing.md](../../shared/references/testing.md), the applicable repository instructions, the ticket, its referenced contract/plan sections, and only the listed code paths first.
+**Scope:** only for work that passed the `hybrid-start` scope gate. Direct work is implemented without this skill.
 
-## Preconditions
+The ticket (or `change.md`) is the whole execution context; the planning conversation is not needed.
 
-For a standard effort, run `package --project . --effort <id> --ticket TK-xxx --json`; it already checks the graph. Run `graph` separately only when dependency detail is needed. Do not repeat unchanged readiness checks in the same session. For a compact effort, read and validate the active `change.md` directly; it has no ticket or graph. Confirm readiness, predecessors where applicable, paths/symbols, and input revisions. If a precondition fails, preserve edits and return a focused blocker. Move a standard ticket to `in_progress` through the runner; a state update is not evidence of implementation.
+## Start: one call
 
-## Execute one behavior at a time
+- Standard: `hybrid next --effort <id> --write`. Continue only when `ticket.ready` is true; otherwise return its `errors`/`blockers` to the planner, keeping your edits. Then `hybrid ticket update --effort <id> --ticket TK-xxx --status in_progress`.
+- Compact: read `change.md`; no runner call is needed to start.
 
-1. Write the next behavior case at the agreed seam with an independent literal, property, or accepted example. Do not mock internal Modules or verify a side channel.
-2. Run it and confirm red is caused by missing/incorrect behavior. An environment or missing-file error is not valid red; fix the environment or return it.
-3. Implement the smallest compatible change. Keep the executor's freedom to local reversible details, but never alter acceptance text, expected results, scope, or a public/data contract silently.
-4. Run green and the focused regression. A small refactor is allowed only with the relevant suite green; a wide structural change becomes an explicit ticket.
-5. Checkpoint the next concrete step. Keep task checkboxes and ticket status truthful; do not mark a reviewer checklist in the executor's name.
+Read the ticket's "Leitura em ordem" paths and nothing broader.
 
-For bug, refactor, migration, prototype, UI, persistence, and external integration routes, follow the conditional contract in the ticket and preserve its limits. For a new decision, incompatible path, unplanned dependency, unavailable required resource, or repeated failure without new evidence, record completed work and return to the planner with path/symbol, step, impact, and decision needed.
+## Loop, one behavior at a time
 
-Do not commit, publish, merge, deploy, or modify user-owned unrelated changes by default. Return changed files/symbols, ticket state, criteria addressed, executed evidence refs, pending work, and next action. Leave `implemented` until `hybrid-verify` supplies current evidence.
+1. Write the next behavior case at the agreed seam, with an independent oracle: a literal, a property, or an accepted example. Internal modules stay unmocked.
+2. Run it and see red caused by missing or wrong behavior. An environment or import error is not a valid red.
+3. Make the smallest change that turns it green, then run the focused regression. Refactor only with the suite green.
 
-## Session efficiency
+Run the focused test file while iterating and the ticket's validation command once at the end. Details are in [testing.md](../../shared/references/testing.md), read it only when a seam or oracle is unclear.
 
-Apply [bounded-execution.md](../../shared/references/bounded-execution.md) when executing a Goal or a multi-ticket request. Keep the selected milestone fixed; use only the active ticket's context. Checkpoint at a completed behavior, material failure or handoff, rather than every tool call. Fix in-scope acceptance defects in this ticket; optional improvements go to backlog. At a session limit finish the safe operation, record partial status and give the short continuation prompt. Never claim project completion to retire an older global Goal.
+## Close: evidence in the same run
+
+Run the final validation through the runner. It executes the command, records the evidence, and advances the ticket:
+
+```text
+hybrid evidence run --effort <id> --ticket TK-xxx --acceptance-refs AC-001,AC-002 --command "<exact validation command>" --path <code path> --path <test path>
+```
+
+- `passed` with every ticket `AC` covered → the ticket becomes `verified`. No separate `hybrid-verify` is needed.
+- `failed` → fix and rerun; the output tail is in the response.
+- Compact: omit `--ticket`, then check the diff against `change.md` yourself (`git diff --stat` + `git diff`). That is the whole review for compact work.
+
+Keep acceptance text, expected results, scope, and public/data contracts exactly as given. A new decision, incompatible path, unplanned dependency, or repeated failure without new evidence goes back to the planner with ticket, step, evidence, work done, decision needed, and impact.
+
+Commit, publish, and deploy only when asked. Return changed files, ticket status, `EV` refs, pending work, and `next_action`: the next ticket in the same session if it is in `queue` and context is below ~100k tokens; otherwise `hybrid-review` for the milestone and a continuation prompt.

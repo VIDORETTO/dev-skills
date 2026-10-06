@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Start"
+  short_description: "Route, resume, or skip the Hybrid workflow"
+policy:
+  allow_implicit_invocation: false

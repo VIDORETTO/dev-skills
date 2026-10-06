@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Implement"
+  short_description: "Execute one ready ticket test-first"
+policy:
+  allow_implicit_invocation: false

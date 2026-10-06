@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Verify"
+  short_description: "Re-verify stale or external evidence"
+policy:
+  allow_implicit_invocation: false
