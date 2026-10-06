@@ -27,13 +27,15 @@ Ele combina contrato comportamental, linguagem de domínio, Modules/Interfaces/S
 - [O que este kit resolve](#o-que-este-kit-resolve)
 - [Visão geral](#visão-geral)
 - [Skills](#skills)
+- [Custo e eficiência: kit pesado × Hybrid](#custo-e-eficiência-kit-pesado--hybrid)
 - [Instalação](#instalação)
 - [Fluxo rápido](#fluxo-rápido)
 - [Runner determinístico](#runner-determinístico)
 - [Artefatos e fontes de verdade](#artefatos-e-fontes-de-verdade)
-- [Estrutura do repositório](#estrutura-do-repositório)
+- [Estrutura da pasta](#estrutura-da-pasta-hybrid-spec-kit)
 - [Exemplos](#exemplos)
 - [Validação](#validação)
+- [Medir o overhead](#medir-o-overhead)
 - [Limites atuais](#limites-atuais)
 - [FAQ](#faq)
 - [Contribuindo](#contribuindo)
@@ -58,22 +60,21 @@ O pacote é local por desenho. Ele não publica, faz merge, dispara deploy ou cr
 
 ## Visão geral
 
-O fluxo padrão percorre uma cadeia curta de artefatos canônicos:
+Toda demanda passa primeiro pelo filtro de escopo. Só o trabalho que justifica o custo entra na cadeia de artefatos:
 
 ```text
-demanda
-  │
-  ▼
-discover → domain → specify → plan → slice → check
-                                                    │
-                                                    ▼
-                                            implement → verify → review
-                                                    │
-                                                    ▼
-                                           checkpoint + evidência
-                                                    │
-                                                    └──→ start / resume
+demanda ──► filtro de escopo ──► pequena? ──► trabalho direto (0 artefatos, 0 runner)
+                  │
+                  ▼ sessão de planejamento
+discover → domain → specify → plan → slice
+                  │
+                  ▼ uma sessão curta por marco (até 3 tickets)
+next ──► implement (red → green) ──► evidence run ──► review do marco ──► done
+  ▲                                                                    │
+  └──────────────── checkpoint + prompt de continuação ◄───────────────┘
 ```
+
+`verify` e `check` ficam fora do caminho normal: entram para evidência obsoleta, procedimentos manuais ou externos e auditorias.
 
 Cada passagem responde a uma pergunta diferente:
 
@@ -86,7 +87,7 @@ Cada passagem responde a uma pergunta diferente:
 | Fatiamento | Qual é a primeira entrega vertical executável? | tickets com dependências e pacote completo |
 | Check | Os artefatos convergem? | consistência, grafo, prontidão e reconciliação |
 | Implementação | Qual comportamento será entregue agora? | código mínimo e estado honesto do ticket |
-| Verificação | O comportamento foi realmente observado? | evidência executada, revisão e limitações |
+| Verificação | O comportamento foi realmente observado? | evidência executada pelo runner (`evidence run`) |
 | Revisão | A mudança respeita padrões e contrato? | relatório separado de Standards e Spec |
 
 ## Skills
@@ -95,7 +96,7 @@ As dez skills são instaladas como pastas com `SKILL.md` e são acionadas só pe
 
 ### Quando não usar
 
-O kit tem custo fixo. Instruções extras aumentam passos e tokens: medições independentes encontraram +19% a +20% só com um AGENTS.md. Por isso `hybrid-start` aplica primeiro um filtro de escopo. O kit é usado apenas quando pelo menos uma destas condições vale:
+O kit tem custo fixo: cada instrução extra vira passos e tokens (veja [Custo e eficiência](#custo-e-eficiência-kit-pesado--hybrid)). Por isso `hybrid-start` aplica primeiro um filtro de escopo. O kit é usado apenas quando pelo menos uma destas condições vale:
 
 1. o trabalho atravessa mais de uma sessão ou vai para outro agente ou modelo;
 2. envolve vários comportamentos ou módulos, persistência, contrato público, migração ou concorrência;
@@ -122,6 +123,67 @@ Correção de texto, docs ou configuração, função com comportamento conhecid
 | [`hybrid-implement`](skills/hybrid-implement/SKILL.md) | Executa um ticket com comportamento primeiro, mudança mínima e checkpoint. |
 | [`hybrid-verify`](skills/hybrid-verify/SKILL.md) | Reverifica evidência obsoleta, procedimentos manuais/externos e gates de entrega; o caminho normal registra evidência no `implement`. |
 | [`hybrid-review`](skills/hybrid-review/SKILL.md) | Faz revisão fixa em dois eixos: Standards e Spec, sem corrigir silenciosamente. |
+
+## Custo e eficiência: kit pesado × Hybrid
+
+Esta seção resume o estudo feito antes da otimização do kit. A análise completa, com premissas e o modelo de custo, está em [`docs/comparative-review.md`](docs/comparative-review.md).
+
+### O que gera custo num agente
+
+Cada turno reenvia o contexto inteiro. Os tokens cobrados são aproximadamente **nº de turnos × contexto médio**, e o tempo depende principalmente do nº de turnos. Daí saem três alavancas, em ordem de impacto:
+
+1. **Turnos extras.** Toda instrução do tipo "leia X", "rode Y" ou "registre Z" vira pelo menos uma chamada, e o agente obedece.
+2. **Comprimento da sessão.** O custo cresce de forma quadrática com o nº de turnos. Sessões curtas, que partem de um pacote pequeno, custam menos que uma sessão longa.
+3. **Texto lido cedo.** O que entra no turno 2 é reenviado em todos os turnos seguintes. Com cache sai mais barato, mas ainda ocupa a janela.
+
+### O que a pesquisa mostra
+
+| Fonte | Achado |
+| --- | --- |
+| ETH Zurich, *Evaluating AGENTS.md* (ICLR 2026) | Arquivos de contexto escritos por desenvolvedores melhoraram o sucesso em ~4% e aumentaram o custo em até 19%. Os gerados por LLM reduziram o sucesso em ~3%, aumentaram o custo em mais de 20% e acrescentaram ~4 passos por tarefa. A causa: instruções que pedem mais exploração e mais testes, e os agentes seguem. |
+| Spec Kit × OpenSpec, mesma tarefa | 120.947 contra 57.740 tokens no total (+109%). Só o planejamento: 96.298 contra 38.117 (+152%). Implementação: 84.742 contra 53.612 (+58%). |
+| Anthropic, skills e cache | Antes de ser acionada, uma skill custa só o frontmatter (~100 tokens); o corpo entra quando ela é invocada. Tokens em cache custam 10% da entrada normal. |
+| Matt Pocock, *smart zone* | O modelo raciocina bem até cerca de 150 mil tokens de contexto. A troca de sessão deve acontecer numa fronteira de fase. |
+
+### Kit pesado × Hybrid otimizado
+
+O "kit pesado" é o padrão encontrado no Spec Kit e na primeira versão deste próprio kit, medida antes da otimização.
+
+| Aspecto | Kit pesado | Hybrid otimizado |
+| --- | --- | --- |
+| Pedido pequeno | passa por todas as fases | filtro de escopo: trabalho direto, sem artefatos nem runner |
+| Leitura obrigatória na rota compacta | ~11–13 mil tokens (5 skills + referências) | ~1,5 mil tokens (`hybrid-start` + `hybrid-implement`) |
+| Entrada de uma sessão | 4 chamadas (`start`, `invalidate`, `session`, `package`), ~2,4 mil tokens de saída | 1 chamada (`next`), ~360 tokens |
+| Execução dos testes | no `implement` e de novo no `verify` | uma vez, gravada por `evidence run` |
+| Evidência | declarada pelo agente (`--executed`) | observada pelo runner (`exit_code`, duração, hash) |
+| Revisão | 5 comandos git, por ticket | 1 comando, por marco, eixos em subagentes |
+| Ticket | 11 seções, ~670 tokens | 4 seções obrigatórias, ~370 tokens |
+| Política de sessão | 1.540 tokens; renova com 60% da janela (600 mil numa janela de 1M) | ~395 tokens; renova por ticket ou ~100 mil tokens |
+| Texto das 10 skills | ~32 mil caracteres, com seções repetidas | ~21,5 mil caracteres (−33%), referências sob demanda |
+
+### Estimativa de overhead contra o uso sem skill
+
+Isto é um **modelo, não uma medição**. Premissas: prompt de sistema de 15 mil tokens; tarefa pequena com 12 turnos e média com 70 turnos.
+
+| Cenário | Kit pesado | Hybrid otimizado |
+| --- | --- | --- |
+| Tarefa pequena | ~+400% de tokens, ~3× os turnos | 0% (trabalho direto) ou ~+25% na rota compacta |
+| Tarefa média | ~+150% numa sessão longa | ~−7% (sessão de plano + 3 sessões curtas de execução) |
+
+Conclusões:
+
+- **Abaixo de 10% é viável em tarefas médias e grandes**, e o kit pode até ficar abaixo do uso sem skill, porque divide o trabalho em sessões curtas.
+- **Em tarefas pequenas, o único overhead aceitável é zero**, e por isso elas não entram no kit.
+- O número real vem de [`scripts/bench_ab.py`](#medir-o-overhead), comparando o custo por tarefa concluída.
+
+### Fontes
+
+- ETH Zurich SRI Lab, [*Evaluating AGENTS.md: Are Repository-Level Context Files Helpful for Coding Agents?*](https://arxiv.org/abs/2602.11988) (ICLR 2026). Resumos em [InfoQ](https://infoq.com/news/2026/03/agents-context-file-value-review/) e [agentpatterns.ai](https://agentpatterns.ai/instructions/evaluating-agents-md-context-files/).
+- [*Is your "safe choice" burning your budget?*](https://medium.com/it-chronicles/is-your-safe-choice-burning-your-budget-1cfddf8782e4), comparação de tokens entre Spec Kit e OpenSpec.
+- Anthropic, [*Harnessing Claude's intelligence*](https://claude.com/blog/harnessing-claudes-intelligence), sobre contexto por turno e cache.
+- [*Reduce AI token usage with progressive disclosure*](https://chudi.dev/blog/reduce-ai-token-usage-progressive-disclosure).
+- Matt Pocock, [`skills/engineering`](https://github.com/mattpocock/skills/tree/main/skills/engineering) (`ask-matt`, fronteiras de fase e *smart zone*) e [`skills/productivity`](https://github.com/mattpocock/skills/tree/main/skills/productivity) (`writing-for-agents`).
+- GitHub, [Spec Kit](https://github.com/github/spec-kit) v1.1.0.
 
 ## Instalação
 
@@ -303,6 +365,7 @@ Regra prática: corrija a fonte proprietária e regenere a projeção. Não mant
 ├── assets/
 │   └── hybrid-workflow.svg       # visão visual do fluxo
 ├── docs/
+│   ├── comparative-review.md     # estudo: Spec Kit, Matt Pocock, custo em tokens
 │   ├── evaluation.md             # interpretação e matriz E01–E31
 │   ├── sources.md                # proveniência e adaptações
 │   ├── usage.md                  # operação detalhada
@@ -312,13 +375,16 @@ Regra prática: corrija a fonte proprietária e regenere a projeção. Não mant
 │   ├── evaluation/              # casos comportamentais
 │   └── standard/                 # exemplo com spec, plan e tickets
 ├── scripts/
+│   ├── bench_ab.py               # benchmark A/B com e sem o kit
 │   └── hybrid.py                 # runtime determinístico local
 ├── shared/
 │   ├── references/               # contratos de operação e vocabulário
 │   ├── schemas/                  # schemas JSON
 │   └── templates/                # templates de artefatos
-├── skills/                       # dez skills distribuíveis
+├── skills/                       # dez skills (SKILL.md + agents/openai.yaml)
 └── tests/
+    ├── test_bench.py             # harness A/B com claude falso
+    ├── test_lean.py              # next, evidence run, gates, instalação
     ├── test_runner.py            # testes do runtime e fixtures
     └── test_session.py           # marcos, dependências e continuação
 ```
@@ -367,7 +433,7 @@ python scripts/hybrid.py package-validate --json
 python -m unittest discover -s tests -v
 ```
 
-`package-validate` verifica as dez skills, frontmatter, tamanho, links relativos, schemas e compilação do runner. A suíte de testes exercita o runtime em workspaces temporários, incluindo instalação, validação, grafos, projeções, checkpoints, evidências, gates, deduplicação e configuração.
+`package-validate` verifica as dez skills, frontmatter, tamanho, links relativos, schemas e compilação do runner. A suíte (49 testes) exercita o runtime em workspaces temporários: instalação, validação, grafos, projeções, checkpoints, evidências, `next`, `evidence run`, transições e gate de revisão, deduplicação, configuração e o harness A/B.
 
 O estado de cada execução, a revisão testada e suas limitações ficam em [`docs/validation-report.md`](docs/validation-report.md). A matriz E01–E31 em [`docs/evaluation.md`](docs/evaluation.md) separa checks determinísticos de avaliação comportamental por modelo.
 
@@ -392,7 +458,7 @@ Esta versão trabalha localmente e não inclui:
 - GUI;
 - publicação, merge ou deploy;
 - instalação global ou alteração de configurações pessoais;
-- medição comparativa de custo, economia ou superioridade;
+- medição real de overhead já executada: o harness existe, mas ainda não foi rodado com modelo;
 - execução de serviços externos pelo runner.
 
 Consultas de documentação atual para bibliotecas, SDKs, APIs, CLIs e serviços ficam a cargo de `hybrid-plan` por meio do Context7 quando essa capacidade estiver disponível.
@@ -429,6 +495,6 @@ Para mudanças que alteram comportamento do protocolo, atualize também os schem
 
 ## Proveniência
 
-O pacote foi adaptado da arquitetura local `ARQUITETURA-HIBRIDA-SKILLS.md` 1.2, com referências preservadas a `spec-kit` e `mattpocock-skills-filtered`. As decisões, contribuições e adaptações estão documentadas em [`docs/sources.md`](docs/sources.md).
+O pacote foi adaptado da arquitetura local `ARQUITETURA-HIBRIDA-SKILLS.md` 1.2, combinando ideias do [Spec Kit](https://github.com/github/spec-kit) (artefatos separados, IDs, análise de consistência e convergência) e das [skills de Matt Pocock](https://github.com/mattpocock/skills) (entrevista em rodadas, glossário/ADR, seams, fatias verticais, TDD, revisão em dois eixos, diagnóstico de bug). As decisões e adaptações estão em [`docs/sources.md`](docs/sources.md) e a comparação com os dois kits em [`docs/comparative-review.md`](docs/comparative-review.md).
 
-**Estado atual:** v1 local, com avaliação determinística preparada e avaliação comportamental ainda dependente de um modelo/contexto autorizado para executar os casos.
+**Estado atual:** v1 local otimizada para custo. Validação determinística verde; avaliação comportamental e medição A/B de overhead ainda pendentes de execução com modelo.

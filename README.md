@@ -25,7 +25,7 @@ O conjunto atual tem dois componentes independentes:
 
 | Componente | O que entrega | Ponto de entrada |
 | --- | --- | --- |
-| [`hybrid-spec-kit`](./hybrid-spec-kit/README.md) | Dez skills para descobrir, especificar, planejar, fatiar, verificar e revisar mudanças; mais um runner determinístico. | `hybrid-spec-kit/skills/*/SKILL.md` e `hybrid-spec-kit/scripts/hybrid.py` |
+| [`hybrid-spec-kit`](./hybrid-spec-kit/README.md) | Dez skills para descobrir, especificar, planejar, fatiar, implementar e revisar mudanças, com um runner determinístico. Otimizado para custo: um filtro de escopo deixa pedidos pequenos fora do kit ([estudo](./hybrid-spec-kit/README.md#custo-e-eficiência-kit-pesado--hybrid)). | `hybrid-spec-kit/skills/*/SKILL.md` e `hybrid-spec-kit/scripts/hybrid.py` |
 | [`readme-standardization-skill`](./readme-standardization-skill/SKILL.md) | Uma skill para analisar um repositório e criar ou padronizar seu README em quatro camadas. | `readme-standardization-skill/SKILL.md`, nome `readme-standardization` |
 
 O objetivo é manter o julgamento semântico nas skills e deixar fatos verificáveis — estrutura, IDs, referências, grafos, projeções, fingerprints, evidências e checkpoints — sob um runtime local reproduzível quando esse runtime existir.
@@ -37,7 +37,7 @@ O objetivo é manter o julgamento semântico nas skills e deixar fatos verificá
 - Artefatos com ownership explícito: `spec.md`/`change.md`, `plan.md`, tickets, `state.json`, evidências e achados.
 - Validações determinísticas para referências, IDs, schemas, dependências, ciclos, projeções e prontidão de pacotes.
 - Uma skill de README que não inventa comandos, versões, badges, arquitetura, licença ou roadmap.
-- Exemplos documentais e uma suíte local de 32 testes para o runtime do Hybrid Spec Kit.
+- Exemplos documentais e uma suíte local de 49 testes para o runtime do Hybrid Spec Kit, além de um harness A/B (`scripts/bench_ab.py`) para medir o overhead contra o uso sem skill.
 
 ## 🧠 Como funciona
 
@@ -102,7 +102,7 @@ Por padrão, a instalação copia:
 
 | Destino no projeto consumidor | Conteúdo |
 | --- | --- |
-| `.agents/skills` | As dez pastas `hybrid-*` com seus `SKILL.md` |
+| `.agents/skills` (ou `.claude/skills`, se existir) | As dez pastas `hybrid-*` com `SKILL.md` e `agents/openai.yaml` |
 | `.agents/shared` | Referências compartilhadas |
 | `.hybrid/shared` | Cópia das referências usada pelo runtime instalado |
 | `.hybrid/hybrid.py` | Runner local do projeto |
@@ -126,7 +126,7 @@ python .hybrid/hybrid.py init `
   --json
 ```
 
-Em seguida, invoque `$hybrid-start` com a demanda. O fluxo recomenda a primeira etapa ainda necessária e lê o estado existente antes de retomar um esforço.
+Em seguida, invoque `/hybrid-start` (Claude Code) ou `$hybrid-start` (Codex) com a demanda. Ele decide primeiro se o pedido precisa do kit: pedidos pequenos seguem como trabalho direto. Nos demais, recomenda a primeira etapa ainda necessária e retoma esforços existentes com uma única chamada (`next`).
 
 Para uma mudança pequena e bem conhecida, inicialize com `--mode compact`. Para múltiplos comportamentos, módulos, persistência ou coordenação, use `standard`. O modo `expanded` é reservado para incerteza alta, compatibilidade pública, migrações difíceis ou dados de maior impacto.
 
