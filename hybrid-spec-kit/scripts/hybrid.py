@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,7 @@ else:
 SHARED_ROOT = PACKAGE_ROOT / "shared"
 
 CONFIG_REL = Path(".hybrid") / "config.json"
+SKILL_ROOT_CANDIDATES = tuple(Path(root) / "skills" for root in (".agents", ".claude", ".cursor", ".github"))
 GENERATED_REL = Path(".hybrid") / "generated.json"
 
 EFFORT_PHASES = [
@@ -78,6 +80,9 @@ TICKET_STATUSES = {
     "cancelled",
     "superseded",
 }
+TERMINAL_TICKET_STATUSES = {"cancelled", "superseded"}
+DELIVERY_TICKET_STATUSES = {"implemented", "verified", "done"}
+REVIEW_STATUSES = {"pending", "passed", "changes_requested"}
 EVIDENCE_RESULTS = {"passed", "failed", "partial", "not_run", "stale"}
 VERIFICATION_STATUSES = {"not_run", "partial", "passed", "failed", "stale"}
 ID_PATTERNS = {
@@ -768,19 +773,14 @@ def validate_ticket(
     if isinstance(ticket.get("acceptance_refs"), list) and not ticket["acceptance_refs"]:
         errors.append(f"{path}: acceptance_refs must contain at least one criterion")
     body = str(ticket.get("_body", ""))
+    # Core sections only; decisions, change map, technical contract and sequence are optional
+    # so a ticket carries what the executor needs and nothing the skills already state.
     required_marker_groups = {
         "Objetivo": ["objetivo"],
         "Exclusões": ["exclusões", "não inclui"],
         "Leitura": ["leitura"],
-        "Decisões": ["decisões"],
-        "Mapa de alterações": ["mapa de alterações"],
-        "Contrato": ["contrato"],
         "Exemplos": ["exemplos"],
-        "Dependências": ["dependências"],
-        "Sequência": ["sequência"],
         "Validação": ["validação"],
-        "Condição de retorno": ["condição de retorno"],
-        "Relatório de saída": ["relatório de saída"],
     }
     lower_body = body.lower()
     missing_markers = [label for label, alternatives in required_marker_groups.items() if not any(item in lower_body for item in alternatives)]
@@ -888,6 +888,8 @@ def validate_effort(project: Path, effort_dir: Path, config: Mapping[str, Any]) 
                 errors.append(f"{path}: blocker {required_ticket} does not exist")
         if ticket.get("status") == "done" and ticket.get("verification_status") != "passed":
             errors.append(f"{path}: done ticket must have verification_status=passed")
+        if ticket.get("status") == "done" and ticket.get("review_status") != "passed":
+            errors.append(f"{path}: done ticket must have review_status=passed")
     graph_errors, graph = graph_for_tickets(tickets)
     errors.extend(graph_errors)
     tickets_by_id = {ticket.get("id"): ticket for ticket in tickets if isinstance(ticket.get("id"), str)}
@@ -1466,10 +1468,10 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
         "checkpoint_next_action": str(state.get("next_action", ""))[:400],
         "checkpoint_next_action_truncated": len(str(state.get("next_action", ""))) > 400,
         "limits": {"max_tickets": args.max_tickets, "soft_minutes": args.minutes,
-                   "context_used_percent": 60, "planned_compactions": 0},
+                   "renew_context_tokens": 100000, "renew_at": "ticket boundary", "planned_compactions": 0},
         "readiness_checked": False, "ticket_growth": growth_guard, "warnings": warnings, "continuation_prompt": prompt,
         "goal_objective": (f"Trabalhar em {label or stage} no esforço {directory.name} até cumprir os aceites e revisão, "
-                           f"ou alcançar {args.minutes} minutos/60% do contexto; entregar checkpoint verdadeiro e prompt curto. "
+                           f"ou alcançar {args.minutes} minutos/~100 mil tokens de contexto; entregar checkpoint verdadeiro e prompt curto. "
                            "Não ampliar escopo nem declarar tickets/projeto concluídos sem evidência."),
         "note": "Scheduling only. Limits are agent policy; this command does not monitor context, stop processes, create Goals or certify completion.",
     }
@@ -1479,11 +1481,71 @@ def run_session(args: argparse.Namespace) -> dict[str, Any]:
                    + (f"Baseline de tickets: {baseline_count}.\n\n" if baseline_count else "")
                    + f"Crescimento: {growth_percent}% ({len(tickets)} atuais); reconciliar: {str(growth_guard['requires_reconciliation']).lower()}.\n\n"
                    f"Próximo marco: {label or stage}. Sugestão; executar prontidão antes de editar.\n\n"
-                   f"Limites: até {args.max_tickets} tickets; {args.minutes} minutos; 60% do contexto; sem compactação planejada.\n\n"
+                   f"Limites: até {args.max_tickets} tickets; {args.minutes} minutos; renovar por ticket ou ~100 mil tokens; sem compactação planejada.\n\n"
                    f"{prompt}\n")
         guarded_generated_write(project, target, content, args.force)
         result["written"] = rel_path(target, project)
     return result
+
+
+def run_next(args: argparse.Namespace) -> dict[str, Any]:
+    """One small entry call: start + invalidate + session + package, without the ticket body."""
+    project = project_from(args.project)
+    config = load_config(project)
+    directory = resolve_effort(project, config, args.effort)
+    state = load_state(directory, config)
+    tracked = {str(item.get("path")) for item in state.get("inputs", {}).values()
+               if isinstance(item, dict) and isinstance(item.get("path"), str)}
+    untracked = {name: path for name, path in canonical_effort_inputs(project, directory).items() if path not in tracked}
+    if args.write and untracked:
+        run_checkpoint(argparse.Namespace(
+            project=args.project, effort=directory.name, expected_revision=int_value(state.get("revision"), -1),
+            phase=None, status=None, next_action=None, active_ticket=None, last_evidence=None,
+            pending_question=None, blocker=None, input=[f"{name}={path}" for name, path in untracked.items()],
+        ))
+        untracked = {}
+    invalidation = run_invalidate(argparse.Namespace(project=args.project, effort=directory.name, write=args.write))
+    session = run_session(argparse.Namespace(
+        project=args.project, effort=directory.name, max_tickets=args.max_tickets, minutes=30,
+        baseline_tickets=None, write=False, force=False,
+    ))
+    state = load_state(directory, config)
+    _metadata, _body, contract = metadata_for_effort(directory)
+    selected = [item["id"] for item in session["selected_tickets"]]
+    ticket: dict[str, Any] | None = None
+    if selected:
+        package = run_package(argparse.Namespace(project=args.project, effort=directory.name, ticket=selected[0], write=False, force=False))["package"]
+        ticket = {
+            "id": selected[0], "path": session["selected_tickets"][0]["path"],
+            "status": package["identity"]["ticket_status"], "ready": package["ready"],
+            "acceptance_refs": package["objective_and_limits"]["acceptance_refs"],
+            "errors": package["errors"], "blockers": package["blockers"],
+            "validation": package["validation"].strip()[:600],
+        }
+        if ticket["status"] in {"in_progress", "implemented", "verified"} and not package["errors"] and not package["blockers"]:
+            ticket["ready"] = not package["changed_inputs"] and not package["untracked_inputs"]
+    changes = git_status(project)
+    if untracked:
+        next_action = "Rode next --write para registrar os insumos canônicos"
+    elif invalidation["stale_evidence"] and not args.write:
+        next_action = "Rode next --write para invalidar a evidência obsoleta"
+    elif ticket and ticket["ready"]:
+        next_action = f"Leia {ticket['path']} e execute; registre com evidence run"
+    elif ticket:
+        next_action = "Devolva os erros/bloqueios do ticket ao dono do artefato"
+    else:
+        next_action = str(state.get("next_action", ""))[:300]
+    return {
+        "outcome": "completed", "effort": directory.name, "stage": session["stage"],
+        "contract": rel_path(contract, project), "checkpoint_revision": state.get("revision"),
+        "baseline": (state.get("baseline") or {}).get("ref") or git_ref(project),
+        "working_changes": len(changes), "working_changes_sample": changes[:8],
+        "untracked_inputs": untracked, "changed_inputs": sorted(invalidation["changed_inputs"]),
+        "stale_evidence": invalidation["stale_evidence"],
+        "ticket": ticket, "queue": selected[1:], "pending_tickets": session["pending_tickets"],
+        "warnings": session["warnings"], "next_action": next_action,
+        "continuation_prompt": session["continuation_prompt"],
+    }
 
 
 def run_render(args: argparse.Namespace) -> dict[str, Any]:
@@ -1792,6 +1854,7 @@ def run_evidence_add(args: argparse.Namespace) -> dict[str, Any]:
         "input_paths": paths,
         "input_fingerprints": fingerprints,
     }
+    record.update(getattr(args, "extra_fields", None) or {})
     errors = validate_evidence(record, known_acceptances, evidence_dir / f"{evidence_id}.json", project)
     if errors:
         raise HybridError("; ".join(errors), "evidence")
@@ -1818,6 +1881,67 @@ def run_evidence_add(args: argparse.Namespace) -> dict[str, Any]:
         "tested_revision": tested_revision,
         "verification": rel_path(verification, project),
     }
+
+
+def run_evidence_run(args: argparse.Namespace) -> dict[str, Any]:
+    """Execute the procedure itself, so passed/failed is observed rather than asserted."""
+    project = project_from(args.project)
+    cwd = safe_project_path(project, args.cwd) if args.cwd else project
+    started = time.monotonic()
+    timed_out = False
+    try:
+        completed = subprocess.run(
+            args.run_command, shell=True, cwd=cwd, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=args.timeout,
+        )
+        exit_code: int | None = completed.returncode
+        output = (completed.stdout or "") + (completed.stderr or "")
+    except subprocess.TimeoutExpired as exc:
+        exit_code, timed_out = None, True
+        output = "".join(
+            part.decode("utf-8", "replace") if isinstance(part, bytes) else (part or "")
+            for part in (exc.stdout, exc.stderr)
+        )
+    duration = round(time.monotonic() - started, 2)
+    result = "passed" if exit_code == 0 else "failed"
+    tail = "\n".join(output.strip().splitlines()[-args.tail_lines:])
+    extra: dict[str, Any] = {"executor": "runner", "exit_code": exit_code, "duration_s": duration,
+                             "output_sha256": sha256_bytes(output.encode("utf-8"))}
+    if result != "passed":
+        extra["output_tail"] = tail
+    stored = run_evidence_add(argparse.Namespace(
+        project=args.project, effort=args.effort, ticket=args.ticket, acceptance_refs=args.acceptance_refs,
+        procedure=args.run_command, result=result, executed=True, path=args.path, paths=None,
+        environment=args.environment, observations=f"exit={exit_code}; {duration}s" + ("; timeout" if timed_out else ""),
+        evidence_ref=None, limitations=f"timeout after {args.timeout}s" if timed_out else "",
+        force=args.force, extra_fields=extra,
+    ))
+    response: dict[str, Any] = {
+        "outcome": "completed" if result == "passed" else "failed",
+        "effort": stored["effort"], "ticket": args.ticket, "evidence": stored["evidence"],
+        "result": result, "exit_code": exit_code, "duration_s": duration,
+    }
+    if result != "passed":
+        response["output_tail"] = tail
+    if args.ticket:
+        config = load_config(project)
+        directory = resolve_effort(project, config, args.effort)
+        ticket = next(item for item in load_tickets(directory, config) if item.get("id") == args.ticket)
+        metadata = {key: value for key, value in ticket.items() if not key.startswith("_")}
+        missing = missing_passed_refs(project, directory, config, ticket)
+        if result != "passed":
+            metadata["verification_status"] = "failed"
+        elif missing:
+            metadata["verification_status"] = "partial"
+        else:
+            metadata["verification_status"] = "passed"
+            if metadata.get("status") in {"ready", "in_progress", "implemented"}:
+                metadata["status"] = "verified"
+        metadata["ticket_revision"] = int_value(metadata.get("ticket_revision"), 0) + 1
+        atomic_write(ticket["_path"], render_frontmatter(metadata, str(ticket.get("_body", ""))))
+        response.update({"ticket_status": metadata.get("status"),
+                         "verification_status": metadata["verification_status"], "missing_refs": missing})
+    return response
 
 
 def render_verification_content_with_extra(effort_dir: Path, config: Mapping[str, Any], extra: Mapping[str, Any]) -> str:
@@ -1859,6 +1983,22 @@ def render_verification_content_with_extra(effort_dir: Path, config: Mapping[str
     return "\n".join(lines)
 
 
+def missing_passed_refs(project: Path, directory: Path, config: Mapping[str, Any], ticket: Mapping[str, Any]) -> list[str]:
+    evidence_dir = directory / str(config.get("evidence_dir", "evidence"))
+    passed_refs: set[str] = set()
+    if evidence_dir.is_dir():
+        for evidence_path in evidence_dir.glob("EV-*.json"):
+            evidence = load_json(evidence_path)
+            if (
+                isinstance(evidence, dict)
+                and evidence.get("ticket") == ticket.get("id")
+                and evidence.get("result") == "passed"
+                and evidence_is_current(project, evidence)
+            ):
+                passed_refs.update(evidence.get("acceptance_refs", []))
+    return sorted(set(ticket.get("acceptance_refs", [])) - passed_refs)
+
+
 def run_ticket_update(args: argparse.Namespace) -> dict[str, Any]:
     project = project_from(args.project)
     config = load_config(project)
@@ -1871,31 +2011,29 @@ def run_ticket_update(args: argparse.Namespace) -> dict[str, Any]:
     old_status = ticket.get("status")
     if args.status and args.status not in TICKET_STATUSES:
         raise HybridError("Invalid ticket status", "ticket_status")
+    if args.status and args.status != old_status:
+        if old_status in TERMINAL_TICKET_STATUSES:
+            raise HybridError(f"{args.ticket} is {old_status}; create or reopen work explicitly instead", "ticket_transition")
+        if args.status in DELIVERY_TICKET_STATUSES and old_status in {"draft", "blocked"}:
+            raise HybridError(f"{args.ticket} is {old_status}; make it ready before {args.status}", "ticket_transition")
     requested_verification = args.verification_status or ticket.get("verification_status")
-    if args.status in {"verified", "done"} or requested_verification == "passed":
-        evidence_dir = directory / str(config.get("evidence_dir", "evidence"))
-        passed_refs: set[str] = set()
-        if evidence_dir.is_dir():
-            for evidence_path in evidence_dir.glob("EV-*.json"):
-                evidence = load_json(evidence_path)
-                if (
-                    isinstance(evidence, dict)
-                    and evidence.get("ticket") == args.ticket
-                    and evidence.get("result") == "passed"
-                    and evidence_is_current(project, evidence)
-                ):
-                    passed_refs.update(evidence.get("acceptance_refs", []))
-        required_refs = set(ticket.get("acceptance_refs", []))
-        if not required_refs.issubset(passed_refs):
-            missing = ", ".join(sorted(required_refs - passed_refs))
-            raise HybridError(f"Current passed evidence is missing for: {missing}", "ticket_gate")
+    if args.status in {"verified", "done"} or args.verification_status == "passed":
+        missing = missing_passed_refs(project, directory, config, ticket)
+        if missing:
+            raise HybridError(f"Current passed evidence is missing for: {', '.join(missing)}", "ticket_gate")
+        requested_verification = "passed"
+    review = args.review or ticket.get("review_status")
+    if args.status == "done" and review != "passed":
+        raise HybridError("done requires review_status=passed; record the review with --review passed", "ticket_gate")
     metadata = {key: value for key, value in ticket.items() if not key.startswith("_")}
     if args.status:
         metadata["status"] = args.status
-    if args.verification_status:
-        if args.verification_status not in VERIFICATION_STATUSES:
+    if requested_verification:
+        if requested_verification not in VERIFICATION_STATUSES:
             raise HybridError("Invalid verification status", "verification_status")
-        metadata["verification_status"] = args.verification_status
+        metadata["verification_status"] = requested_verification
+    if args.review:
+        metadata["review_status"] = args.review
     if args.note:
         metadata["last_update"] = args.note
     metadata["ticket_revision"] = int_value(metadata.get("ticket_revision"), 0) + 1
@@ -2186,7 +2324,7 @@ def run_package(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def detect_skill_root(project: Path) -> Path:
-    for candidate in (Path(".agents") / "skills", Path(".cursor") / "skills", Path(".github") / "skills"):
+    for candidate in SKILL_ROOT_CANDIDATES:
         if (project / candidate).is_dir():
             return project / candidate
     return project / Path(".agents") / "skills"
@@ -2223,8 +2361,8 @@ def run_install(args: argparse.Namespace) -> dict[str, Any]:
         raise HybridError("The package must contain skills/ and shared/ before installation", "package_invalid")
     conflicts: list[str] = []
     changed: list[str] = []
-    for source in sorted(source_skills.glob("hybrid-*/SKILL.md")):
-        target = skill_root / source.parent.name / source.name
+    for source in sorted(path for path in source_skills.glob("hybrid-*/**/*") if path.is_file()):
+        target = skill_root / source.relative_to(source_skills)
         copy_with_conflict(source, target, conflicts, changed, args.force)
     for source in sorted(source_shared.rglob("*")):
         if not source.is_file():
@@ -2275,7 +2413,7 @@ def run_validate_package(args: argparse.Namespace) -> dict[str, Any]:
     }
     skill_roots = [PACKAGE_ROOT / "skills"]
     installed_project = PACKAGE_ROOT.parent
-    for candidate in (installed_project / ".agents" / "skills", installed_project / ".cursor" / "skills", installed_project / ".github" / "skills"):
+    for candidate in (installed_project / root for root in SKILL_ROOT_CANDIDATES):
         if candidate not in skill_roots:
             skill_roots.append(candidate)
     skill_root = next((candidate for candidate in skill_roots if candidate.is_dir()), skill_roots[0])
@@ -2409,6 +2547,19 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_add.add_argument("--force", action="store_true")
     evidence_add.set_defaults(evidence_command="add")
 
+    evidence_run = evidence_sub.add_parser("run", help="Execute the procedure and record its observed result")
+    add_paths_argument(evidence_run)
+    evidence_run.add_argument("--ticket", help="Ticket ID; omit only for compact change evidence")
+    evidence_run.add_argument("--acceptance-refs", required=True, help="Comma-separated AC IDs")
+    evidence_run.add_argument("--command", dest="run_command", required=True, help="Exact procedure, run through the shell")
+    evidence_run.add_argument("--path", action="append", required=True, help="Input path covered; repeat as needed")
+    evidence_run.add_argument("--cwd", help="Working directory relative to the project")
+    evidence_run.add_argument("--timeout", type=int, default=900)
+    evidence_run.add_argument("--tail-lines", type=int, default=20)
+    evidence_run.add_argument("--environment")
+    evidence_run.add_argument("--force", action="store_true")
+    evidence_run.set_defaults(evidence_command="run")
+
     ticket = sub.add_parser("ticket", help="Update ticket state without changing its contract")
     ticket_sub = ticket.add_subparsers(dest="ticket_command", required=True)
     ticket_update = ticket_sub.add_parser("update")
@@ -2416,6 +2567,7 @@ def build_parser() -> argparse.ArgumentParser:
     ticket_update.add_argument("--ticket", required=True)
     ticket_update.add_argument("--status", choices=sorted(TICKET_STATUSES))
     ticket_update.add_argument("--verification-status", choices=sorted(VERIFICATION_STATUSES))
+    ticket_update.add_argument("--review", choices=sorted(REVIEW_STATUSES), help="Record the review result; done requires passed")
     ticket_update.add_argument("--note")
     ticket_update.set_defaults(ticket_command="update")
 
@@ -2451,6 +2603,11 @@ def build_parser() -> argparse.ArgumentParser:
     package.add_argument("--write", action="store_true")
     package.add_argument("--force", action="store_true")
 
+    next_cmd = sub.add_parser("next", help="Single entry call: baseline, stale inputs, next ticket and readiness")
+    add_paths_argument(next_cmd)
+    next_cmd.add_argument("--max-tickets", type=int, choices=[1, 2, 3], default=3)
+    next_cmd.add_argument("--write", action="store_true", help="Register canonical inputs and mark stale evidence")
+
     session = sub.add_parser("session", help="Suggest a bounded milestone and short continuation without changing state")
     add_paths_argument(session)
     session.add_argument("--max-tickets", type=int, choices=[1, 2, 3], default=3)
@@ -2485,6 +2642,8 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return run_graph(args)
     if command == "session":
         return run_session(args)
+    if command == "next":
+        return run_next(args)
     if command == "render":
         return run_render(args)
     if command == "start":
@@ -2496,6 +2655,8 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return run_invalidate(args)
     if command == "evidence" and args.evidence_command == "add":
         return run_evidence_add(args)
+    if command == "evidence" and args.evidence_command == "run":
+        return run_evidence_run(args)
     if command == "ticket" and args.ticket_command == "update":
         return run_ticket_update(args)
     if command == "finding" and args.finding_command == "add":

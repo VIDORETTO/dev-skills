@@ -6,27 +6,20 @@ disable-model-invocation: true
 
 # Hybrid slice
 
-In the standard profile, ticket files are the single editable source for delivery, subtasks, and ticket state. `todo.md` is generated from them. `backlog.md` is generated from efforts. In compact mode, keep all work in `change.md` and do not create parallel tickets.
+**Scope:** standard and expanded efforts only. Compact work stays in `change.md`, with no tickets.
 
-## Build the graph
+Ticket files are the single editable source for delivery and status; `todo.md` and `backlog.md` are generated from them.
 
-Read `spec.md`, `plan.md`, referenced research/contracts/data model, domain language, applicable instructions, and [execution-package.md](../../shared/references/execution-package.md). Choose the first valuable or risk-reducing behavior. Each ticket is a demonstrable vertical slice through the modules it actually uses; a library function may be one public function and its behavior tests. Do not split database/backend/frontend by habit.
+## Propose, then write
 
-For each ticket use `python <package-root>/scripts/hybrid.py next-id --project . --effort <id> --prefix TK --json`, then fill [the ticket template](../../shared/templates/standard/ticket.md). Preserve IDs and include:
+1. From `spec.md` and `plan.md`, draft a few vertical slices. Each one is a demonstrable behavior through the modules it uses and fits one fresh session. Prefactoring comes first. Tests, review, and helpers stay inside their behavior slice.
+2. Show the breakdown as a numbered list (title, blocked by, what it delivers) and ask once whether the granularity and edges are right. Iterate only on what the user changes.
+3. Write each ticket from [the ticket template](../../shared/templates/standard/ticket.md) and get IDs from `hybrid next-id --effort <id> --prefix TK`. Fill every required section; omit the optional ones that do not apply. `requires` lists only genuine blockers, and a predecessor counts only when `done`.
 
-- objective, explicit exclusions, ordered reading with verified paths and symbols, decisions already resolved, freedom left to the executor, and existing/new change map;
-- exact inputs, outputs, invariants, errors, effects, compatibility, concurrency/idempotency;
-- independent examples for every `AC` ref, real dependencies, sequence of red → green steps, exact validation, and return-to-planner conditions;
-- `requires` edges only for genuine blockers. Use expand–contract for a wide mechanical migration. A predecessor is executable only after `done`.
+A ticket that leaves a material design (authentication, concurrency, public contract) to the executor stays `blocked`, and the choice goes back to planning. Overlapping `owned_areas` mean serialize the tickets or add a real blocker. See [execution-package.md](../../shared/references/execution-package.md) only when a package field is unclear.
 
-Do not mark a ticket `ready` while it asks the executor to choose authentication, concurrency, a public contract, or another material design. Set it `blocked` or return the choice to planning.
+## Close
 
-## Validate and project
+Run `hybrid next --effort <id> --write` once: it validates the graph and reports readiness for the first ticket. Then run `hybrid render --effort <id> --view all`. Record the initial ticket count; growth over 20% triggers reconciliation, never deletion of required work.
 
-Run `validate`, `graph`, and `package` for each candidate. The graph must be acyclic, every acceptance in the selected scope must have a ticket, and the frontier must be explainable. Treat `owned_area_overlaps` as a coordination signal: serialize the tickets or add a real blocker when concurrent writes could conflict. Run `render --view todo` and `render --view backlog`; generated views are not edit targets. A write conflict means preserve the existing edit and reconcile explicitly.
-
-G3 passes only for current inputs, satisfied blockers, verified references, and complete execution packages. Return ticket paths/revisions, graph/frontier, generated views, findings, and next action. No tracker or remote publication is performed in this version.
-
-## Keep the delivery graph small
-
-Testing, review, instrumentation and local helpers belong inside the behavior ticket unless they deliver an independent outcome or genuine dependency. Prefer a few complete vertical slices over one ticket per file, test or audit. Record the initial ticket count and each later addition's reason in the existing plan/checkpoint; over 20% growth triggers reconciliation, not deletion of required work. Use findings/subtasks or reopen an existing ticket for its acceptance defects where valid. Apply [bounded-execution.md](../../shared/references/bounded-execution.md) to group the next milestone into at most three related tickets; never enlarge accepted scope merely to make a session continue.
+G3 passes when inputs are current, blockers are satisfied, references are verified, and the first package is ready. Return ticket paths, frontier, and `next_action`: a fresh session with `hybrid-start`.

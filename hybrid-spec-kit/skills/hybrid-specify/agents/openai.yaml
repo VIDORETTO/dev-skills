@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Specify"
+  short_description: "Write the FR/AC behavior contract"
+policy:
+  allow_implicit_invocation: false

@@ -6,28 +6,19 @@ disable-model-invocation: true
 
 # Hybrid check
 
-This skill has two explicit modes. `consistency` compares contract, plan, tickets, IDs, references, ownership, and graph. `convergence` compares accepted behavior with current code/evidence and detects missing or stale coverage. Neither mode edits the contract to conceal a gap.
+**Scope:** standard and expanded efforts, when artifacts changed outside the normal flow or a milestone needs a convergence audit. The normal flow already validates through `next`.
 
-## Run deterministic checks
+Two modes; neither edits the contract to hide a gap:
 
-Read the relevant effort, state, instructions, and [operating-contract.md](../../shared/references/operating-contract.md). Run `validate` once for the relevant input set and only the requested check mode (consistency for artifact changes; convergence for code/evidence gaps). The available commands are:
+- `consistency` compares contract, plan, tickets, IDs, references, ownership, and graph;
+- `convergence` compares accepted behavior with current code and evidence.
 
-```text
-python <package-root>/scripts/hybrid.py validate --project . --effort <id> --json
-python <package-root>/scripts/hybrid.py check --project . --effort <id> --mode consistency --json
-python <package-root>/scripts/hybrid.py check --project . --effort <id> --mode convergence --json
-```
+## Run
 
-Use `--write` only when the user authorized maintaining local findings. Finding records use `FD-xxx`; before adding one run the same key through `finding add` or let `check --write` deduplicate it. The identity is effort + origin + gap type + affected area, with an explicit semantic discriminator only when two real gaps share that key. Existing open correction tickets remain canonical.
+Run only the requested mode, once per input set: `hybrid check --effort <id> --mode <mode>`. Add `--write` only when the user authorized persisting findings; it deduplicates by effort + origin + gap type + area. An existing open ticket stays the canonical place for a correction.
 
-## Semantic analysis
+Then add the judgement the runner cannot make: requirements without tickets, criteria without evidence, contradictory revisions, scope expansion, and code that is missing, partial, contradictory, or unrequested. Each finding cites path/symbol, criterion or rule, consequence, severity, and owner.
 
-Report requirements without tickets, acceptance criteria without a strategy/evidence, tasks without a reason, contradictory revisions, cycles, stale generated views, stale evidence, scope expansion, and code behavior that is missing, partial, contradictory, or unrequested. A checked box, passing schema, or sentence in a skill is not proof that behavior works. Code review and convergence findings must cite path/symbol, criterion or rule, consequence, severity, and correction owner.
+With identical inputs and evidence, reuse prior findings and open no new cycle. A necessary in-scope correction goes to its existing ticket; optional improvements go to backlog.
 
-Do not change `spec.md`, `plan.md`, or acceptance markers in this skill. A consistency request reports only; an authorized implementation cycle can route routine documentation fixes to their owner. If repeated convergence has no new evidence, revisit the hypothesis instead of creating another identical task.
-
-Return mode, findings, created/deduplicated IDs, evidence refs, and the next gate. Preserve `state.json` and use `invalidate --write` when an input change affects evidence.
-
-## Convergence limit
-
-With identical baseline, inputs and evidence, reuse the prior findings; do not open another convergence cycle. Deduplicate defects and route necessary in-scope corrections to an existing open ticket. Apply the ticket-growth guard in [bounded-execution.md](../../shared/references/bounded-execution.md); future enhancements do not expand the active milestone.
+Return mode, findings (new and deduplicated IDs), and the next gate.

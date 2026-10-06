@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Discover"
+  short_description: "Clarify a demand before specification"
+policy:
+  allow_implicit_invocation: false

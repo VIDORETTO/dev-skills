@@ -91,7 +91,24 @@ Cada passagem responde a uma pergunta diferente:
 
 ## Skills
 
-As dez skills são instaladas como pastas com `SKILL.md` e podem ser chamadas explicitamente com `$nome-da-skill`.
+As dez skills são instaladas como pastas com `SKILL.md` e são acionadas só pelo usuário: `/hybrid-start` no Claude Code ou `$hybrid-start` no Codex. Cada skill traz `agents/openai.yaml` com `allow_implicit_invocation: false`, então o Codex não as carrega sozinho.
+
+### Quando não usar
+
+O kit tem custo fixo. Instruções extras aumentam passos e tokens: medições independentes encontraram +19% a +20% só com um AGENTS.md. Por isso `hybrid-start` aplica primeiro um filtro de escopo. O kit é usado apenas quando pelo menos uma destas condições vale:
+
+1. o trabalho atravessa mais de uma sessão ou vai para outro agente ou modelo;
+2. envolve vários comportamentos ou módulos, persistência, contrato público, migração ou concorrência;
+3. a ambiguidade é grande o bastante para um palpite errado gerar retrabalho;
+4. é preciso evidência rastreável de aceite.
+
+Correção de texto, docs ou configuração, função com comportamento conhecido, bug de correção óbvia, refatoração num único arquivo ou qualquer coisa que caiba numa sessão com cerca de 20 chamadas é **trabalho direto**: sem artefatos, sem runner, sem skills hybrid.
+
+| Rota | Orçamento |
+| --- | --- |
+| Direta | 0 artefatos, 0 chamadas ao runner |
+| Compacta | `change.md` + `evidence run`; no máximo 2 chamadas; sem verify/review separados |
+| Padrão | sessão de planejamento + uma sessão curta por marco; até 3 chamadas ao runner por ticket |
 
 | Skill | Responsabilidade |
 | --- | --- |
@@ -103,7 +120,7 @@ As dez skills são instaladas como pastas com `SKILL.md` e podem ser chamadas ex
 | [`hybrid-slice`](skills/hybrid-slice/SKILL.md) | Converte o contrato em tickets verticais prontos para uma sessão nova. |
 | [`hybrid-check`](skills/hybrid-check/SKILL.md) | Analisa consistência, convergência, blockers, projeções e prontidão. |
 | [`hybrid-implement`](skills/hybrid-implement/SKILL.md) | Executa um ticket com comportamento primeiro, mudança mínima e checkpoint. |
-| [`hybrid-verify`](skills/hybrid-verify/SKILL.md) | Executa os procedimentos reais e registra evidências atuais e suas limitações. |
+| [`hybrid-verify`](skills/hybrid-verify/SKILL.md) | Reverifica evidência obsoleta, procedimentos manuais/externos e gates de entrega; o caminho normal registra evidência no `implement`. |
 | [`hybrid-review`](skills/hybrid-review/SKILL.md) | Faz revisão fixa em dois eixos: Standards e Spec, sem corrigir silenciosamente. |
 
 ## Instalação
@@ -134,12 +151,12 @@ python scripts/hybrid.py install `
   --json
 ```
 
-Por padrão, as dez skills são copiadas para `.agents/skills`. Para projetos que usam outra convenção:
+Por padrão, as skills vão para a primeira raiz existente entre `.agents/skills`, `.claude/skills`, `.cursor/skills` e `.github/skills`; sem nenhuma delas, para `.agents/skills`. Para o Claude Code, use `--skill-root .claude/skills`:
 
 ```powershell
 python scripts/hybrid.py install `
   --project C:\caminho\do\projeto `
-  --skill-root .cursor/skills `
+  --skill-root .claude/skills `
   --json
 ```
 
@@ -194,65 +211,34 @@ python .hybrid/hybrid.py render `
   --json
 ```
 
-### 3. Prepare e execute um ticket
+### 3. Execute um ticket com três chamadas
 
 ```powershell
-python .hybrid/hybrid.py package `
-  --project . `
-  --effort 014-reserva-estoque `
-  --ticket TK-001 `
-  --json
+# entrada única: registra insumos, invalida evidência obsoleta, escolhe o ticket e checa prontidão
+python .hybrid/hybrid.py next --project . --effort 014-reserva-estoque --write --json
 
-python .hybrid/hybrid.py ticket update `
-  --project . `
-  --effort 014-reserva-estoque `
-  --ticket TK-001 `
-  --status in_progress `
-  --json
+python .hybrid/hybrid.py ticket update --project . --effort 014-reserva-estoque `
+  --ticket TK-001 --status in_progress --json
+
+# o runner executa o comando, grava a evidência e avança o ticket para verified
+python .hybrid/hybrid.py evidence run --project . --effort 014-reserva-estoque `
+  --ticket TK-001 --acceptance-refs AC-001 `
+  --command "python -m pytest tests/stock/test_reservation.py -q" `
+  --path src/stock --path tests/stock --json
 ```
 
-O primeiro comando verifica se a sessão recebeu contrato, plano, referências atuais, blockers satisfeitos e todos os campos necessários. O segundo atualiza estado; ele não substitui uma prova de execução.
+O `next` devolve um pacote pequeno: caminho do ticket, aceites, erros, bloqueios e comando de validação. Ele substitui `start` + `invalidate` + `session` + `package`. O `evidence run` registra `exit_code`, duração e hash da saída; em caso de falha, devolve só as últimas linhas. `evidence add --executed` continua disponível para procedimentos manuais ou externos, e nesse caso é uma declaração do agente.
 
-### 4. Registre evidência
+### 4. Feche o marco com revisão
+
+Depois do `hybrid-review` do marco, cada ticket é fechado numa chamada:
 
 ```powershell
-python .hybrid/hybrid.py evidence add `
-  --project . `
-  --effort 014-reserva-estoque `
-  --ticket TK-001 `
-  --acceptance-refs AC-001 `
-  --procedure "python -m pytest tests/stock/test_reservation.py -q" `
-  --result passed `
-  --executed `
-  --path src/stock `
-  --path tests/stock `
-  --observations "resultado observado" `
-  --json
+python .hybrid/hybrid.py ticket update --project . --effort 014-reserva-estoque `
+  --ticket TK-001 --status done --review passed --json
 ```
 
-Resultados `passed`, `failed` e `partial` exigem `--executed` e ao menos um caminho existente. Quando o ambiente impede a execução, use `not_run` e registre a limitação concreta.
-
-### 5. Retome e reconcilie
-
-```powershell
-python .hybrid/hybrid.py start `
-  --project . `
-  --effort 014-reserva-estoque `
-  --json
-
-python .hybrid/hybrid.py invalidate `
-  --project . `
-  --effort 014-reserva-estoque `
-  --json
-
-python .hybrid/hybrid.py check `
-  --project . `
-  --effort 014-reserva-estoque `
-  --mode convergence `
-  --json
-```
-
-Alterações em contrato, plano, código sob teste ou ambiente podem tornar evidências antigas obsoletas. O runner identifica a divergência; a classificação semântica continua sendo uma decisão do fluxo.
+`done` exige evidência atual aprovada para todos os aceites e `review_status: passed`. O runner recusa transições de `draft`/`blocked` para estados de entrega e não reabre `cancelled`/`superseded`.
 
 ## Goals limitados e continuação
 
@@ -262,7 +248,7 @@ Use uma sessão de planejamento para fixar contrato/plano/tickets e sessões nov
 python .hybrid/hybrid.py session --project . --effort 014-reserva-estoque --write --json
 ```
 
-O comando sugere até três tickets relacionados, prioriza o ticket ativo e grava `.hybrid/continuations/<effort>.md` com um prompt curto para a próxima sessão. Verifique a prontidão antes de editar; a sugestão não altera `state.json` nem aprova evidência. O agente encerra no próximo ponto seguro aos 30 minutos ou 60% do contexto usado, entrega trabalho parcial honestamente e evita compactações planejadas.
+O comando sugere até três tickets relacionados, prioriza o ticket ativo e grava `.hybrid/continuations/<effort>.md` com um prompt curto para a próxima sessão. Verifique a prontidão antes de editar; a sugestão não altera `state.json` nem aprova evidência. O agente troca de sessão na fronteira de um ticket ou perto de 100 mil tokens de contexto, entrega trabalho parcial honestamente e evita compactações planejadas.
 
 A primeira contagem observada de tickets vira baseline. Para uma migração cuja quantidade original seja conhecida, forneça `--baseline-tickets <n>` uma vez. Crescimento acima de 20% exige reconciliar causas antes de mais expansão; defeitos necessários e IDs existentes são preservados. Correções do aceite permanecem no ticket quando válido, e melhorias opcionais ficam no backlog.
 
@@ -280,9 +266,11 @@ O arquivo [`scripts/hybrid.py`](scripts/hybrid.py) usa somente a biblioteca padr
 | `validate` | frontmatter, IDs, referências, campos, caminhos e regras do esforço |
 | `graph` | dependências, ciclos, fronteira executável e sobreposição de áreas |
 | `render` | projeções derivadas como `todo.md`, `backlog.md` e `verification.md` |
-| `package` | prontidão do pacote entregue a uma executora |
-| `ticket update` | transição explícita de estado do ticket |
-| `evidence add` | procedimento, execução, caminhos, fingerprint, revisão e limitações |
+| `next` | entrada única: insumos, evidência obsoleta, próximo ticket e prontidão, em saída curta |
+| `package` | prontidão completa do pacote entregue a uma executora |
+| `ticket update` | transição de estado validada; `done` exige evidência e `--review passed` |
+| `evidence run` | executa o comando, registra exit code, fingerprint e avança o ticket |
+| `evidence add` | evidência declarada para procedimentos manuais ou externos |
 | `start` | rota de retomada, baseline, inputs atuais e próxima ação |
 | `session` | sugestão de marco limitado, baseline de tickets e continuação protegida; não comprova prontidão |
 | `invalidate` | evidências e dependentes potencialmente obsoletos |
@@ -382,6 +370,17 @@ python -m unittest discover -s tests -v
 `package-validate` verifica as dez skills, frontmatter, tamanho, links relativos, schemas e compilação do runner. A suíte de testes exercita o runtime em workspaces temporários, incluindo instalação, validação, grafos, projeções, checkpoints, evidências, gates, deduplicação e configuração.
 
 O estado de cada execução, a revisão testada e suas limitações ficam em [`docs/validation-report.md`](docs/validation-report.md). A matriz E01–E31 em [`docs/evaluation.md`](docs/evaluation.md) separa checks determinísticos de avaliação comportamental por modelo.
+
+## Medir o overhead
+
+A meta é que, em tarefas que passam no filtro de escopo, o kit custe no máximo 10% a mais que o uso sem skill, medido como custo por tarefa concluída. Para medir:
+
+```bash
+python scripts/bench_ab.py --tasks tasks.json --runs 3 --out bench-out \
+  --claude-args "--permission-mode acceptEdits"
+```
+
+Cada tarefa (`id`, `repo` de template, `prompt`, `check`) roda nos braços `baseline` e `hybrid`, intercalados. O script grava `runs.jsonl` e `summary.json`, com medianas de turnos, duração e tokens, além do custo por sucesso. A execução consome uso real do modelo: comece com uma tarefa e `--runs 1`.
 
 ## Limites atuais
 

@@ -17,7 +17,7 @@ O esforço usa `phase` (`discovery`, `specification`, `planning`, `slicing`, `im
 
 Um ticket segue `draft → ready → in_progress → implemented → verified → done`. Pode voltar a `in_progress` após mudança de código ou evidência e pode ficar `blocked`, `cancelled` ou `superseded` preservando histórico. Dependências de execução exigem predecessor `done` nesta versão.
 
-`done` exige evidência de aceites com resultado `passed` e a revisão exigida pela política do esforço. Checkboxes de checklist continuam pertencendo ao autor declarado; o implementador não aprova em nome de reviewer.
+`done` exige evidência atual `passed` para todos os aceites do ticket e `review_status: passed`, registrados por `ticket update --status done --review passed`. O runner recusa transições de `draft`/`blocked` para estados de entrega e reabertura de `cancelled`/`superseded`. Evidência gerada por `evidence run` foi observada pelo runner (`executor: runner`); a de `evidence add` é declarada pelo agente. Checkboxes de checklist continuam pertencendo ao autor declarado.
 
 ## Protocolo de saída
 
@@ -43,4 +43,4 @@ O núcleo opera localmente e sem tracker remoto. Publicação, mensagem, merge, 
 
 ## Execução eficiente e continuidade
 
-A política [bounded-execution.md](bounded-execution.md) limita Goals/marcos, contexto, repetição de verificações e expansão de tickets. Use-a ao iniciar/retomar uma execução, não como motivo para carregar todas as referências. Checkpoints e aceites permanecem canônicos. Encerramento de marco inclui `continuation_prompt` curto e `milestone_status` honesto (`completed`, `partial` ou `blocked`); isso não altera o protocolo de status do esforço nem comprova conclusão. Nenhum limite autoriza enfraquecer testes, marcar trabalho pendente como done ou pausar um Goal sem pedido explícito.
+Trabalho direto não entra no kit. Para o restante, [bounded-execution.md](bounded-execution.md) define marcos, renovação de sessão e orçamento de chamadas. Leia-a ao retomar ou encerrar uma sessão, não a cada skill. Nenhum limite autoriza enfraquecer testes ou marcar trabalho pendente como `done`.

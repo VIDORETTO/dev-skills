@@ -1,42 +1,43 @@
 ---
 name: hybrid-start
-description: Route a development request into the hybrid workflow, inspect an existing project, and resume an effort from its checkpoint. Use when starting, resuming, or triaging a project, feature, bug, refactor, migration, prototype, or review.
+description: Decide whether a development request needs the hybrid workflow at all, then route or resume it from its checkpoint with the smallest budget. Use when starting, resuming, or triaging a feature, bug, refactor, migration, prototype, or review.
 disable-model-invocation: true
 ---
 
 # Hybrid start
 
-Use this as the entrypoint. It is a router with a small reconnaissance pass, not a superprompt that repeats the other skills.
+A router with a budget. Its first job is to keep small work out of the kit.
 
-## Read first
+`hybrid <cmd>` below means `python .hybrid/hybrid.py <cmd> --project . --json` (or `python <package>/scripts/hybrid.py` before installation).
 
-1. Read the repository's applicable `AGENTS.md`, `CLAUDE.md`, or equivalent instructions and the user's current request.
-2. Inspect `git status --short --branch`, the repository root, existing `CONTEXT.md`/`CONTEXT-MAP.md`, ADRs, `docs/agents/`, `.hybrid/config.json`, and `specs/` only as far as the request needs.
-3. If an effort is named, run `python <package-root>/scripts/hybrid.py start --project . --effort <id> --json`. After local installation, the equivalent is `python .hybrid/hybrid.py start --project . --effort <id> --json`.
-4. For an existing effort, read [bounded-execution.md](../../shared/references/bounded-execution.md) and run `session --effort <id> --json` to select the next bounded milestone. Run readiness validation once before editing; reuse it only while its inputs are unchanged. A failed check routes repair to its owner; it does not authorize rewriting contracts.
+## Scope gate (run first, costs no tool call)
 
-Record a Git SHA before implementation when Git is available. With no commits, record an inventory fingerprint and say that the baseline is not a SHA. Include staged, unstaged, untracked, and user-owned work in the reconnaissance. If `start` reports canonical inputs that are not tracked in `state.json`, register them with `checkpoint write --input name=path`. Never clean, reset, stash, or overwrite existing work.
+Use the kit only when at least one holds:
 
-## Choose the route
+1. the work spans more than one session or will be handed to another agent or a cheaper model;
+2. several behaviors or modules, persistence, a public contract/API, a data migration, or concurrency are involved;
+3. the expected behavior is ambiguous enough that a wrong guess means rework;
+4. traceable acceptance evidence is required.
 
-- Vague idea with no repository: discovery, then the first useful result.
-- New repository or product: discovery, project vision/restrictions, sufficient architecture, first marco, then feature cycles.
-- Existing feature: focused code recognition, `hybrid-specify`, `hybrid-plan`, `hybrid-slice`, implement, verify, review.
-- Small known function/rule: compact `change.md`, behavior case, implementation, verification, review.
-- Bug: reproduction, supported cause, regression, correction, verification.
-- Internal refactor: preserved behavior, characterization if needed, redesign, equivalence verification.
-- Wide migration: expand, migrate in real batches, contract, integration verification.
-- Research/prototype: question, experiment and limit, evidence, decision; mark prototype status explicitly.
-- Ready diff: fixed baseline, separate Standards and Spec review.
+Otherwise the request is **direct work**: a typo, docs or config tweak, a single-function change with known behavior, a bug with an obvious fix, a refactor inside one file, a question, or anything you expect to finish in one session in about 20 tool calls. Say so in one line and do it directly, with the repository's normal tests: no artifacts, no runner calls, no further hybrid skills. Follow the user if they insist on the kit.
 
-Choose compact, standard, or expanded by uncertainty and risk, not by line count. An existing accepted contract goes directly to its recorded next action; do not repeat discovery/specification/planning by habit. Small known changes use compact mode. If an ambiguity changes behavior, data limits, public compatibility, or authorization, return `needs_input` with concrete options. Record reversible assumptions and continue independent work.
+## Route and budget
 
-## Output and resumption
+| Route | When | Budget |
+| --- | --- | --- |
+| Direct | scope gate fails | 0 artifacts, 0 runner calls |
+| Compact | small but needs a recorded contract or evidence | `change.md` + `evidence run`; ≤2 runner calls; no separate verify/review |
+| Standard | gate passes with several behaviors | planning session (discover → specify → plan → slice), then one fresh session per milestone; ≤3 runner calls per ticket |
+| Expanded | standard plus large uncertainty, public compatibility, or hard migration | standard plus explicit discovery decisions and expand–contract |
 
-Return the protocol in [operating-contract.md](../../shared/references/operating-contract.md): `outcome`, changed artifacts/revisions, findings, evidence refs, and a concrete `next_action`. Read `state.json` before resuming. If inputs changed, run `invalidate --write`, reconcile the affected artifact owner, and do not reuse stale evidence. If no input or evidence changed, continue from the recorded next action without repeating interviews or approvals.
+Existing accepted artifacts go straight to their recorded next action; repeat no discovery, interview, or readiness check whose inputs did not change. A bug with unclear cause or a non-reproducible failure follows [diagnosis.md](../../shared/references/diagnosis.md) before any contract work.
 
-Do not decide the product, impose a stack, publish to a tracker, or implement application code in this skill.
+## Resume an effort
 
-## Bounded delivery
+Run `hybrid next --effort <id> --write` once. It registers canonical inputs, marks stale evidence, selects up to three related tickets, and returns readiness for the first one. Read the ticket file it names and continue with `hybrid-implement`. A failed readiness routes the reported error to the artifact's owner skill. Preserve staged, unstaged, and untracked user work; never clean, reset, or stash it.
 
-A broad “finish everything” request is delivered through bounded milestones, not one unlimited session. Use at most three related tickets and stop at the first session limit in bounded-execution. Planning and long evaluation are separate milestones. Do not create a Goal unless requested. At the boundary, persist an honest checkpoint and return one short prompt for a new session, including the next authorized effort when this one is complete.
+## Session boundary
+
+Renew the session at a ticket boundary or near 100k tokens of context. Planning and execution are separate sessions. At a boundary, report the observed result and one short continuation prompt from `next`/`session`; create a Goal only when the user asks ([bounded-execution.md](../../shared/references/bounded-execution.md)).
+
+Return `outcome`, changed artifacts, and `next_action` per [operating-contract.md](../../shared/references/operating-contract.md). This skill does not implement application code or choose the product.

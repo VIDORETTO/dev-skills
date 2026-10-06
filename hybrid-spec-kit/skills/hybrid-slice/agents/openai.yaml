@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Slice"
+  short_description: "Split the contract into vertical tickets"
+policy:
+  allow_implicit_invocation: false

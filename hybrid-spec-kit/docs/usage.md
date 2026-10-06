@@ -2,7 +2,7 @@
 
 ## Iniciar um projeto
 
-Depois da instalação, leia as instruções existentes do projeto antes de criar arquivos. Use `$hybrid-start` com a demanda. Para preparar o layout local, execute:
+Depois da instalação, leia as instruções existentes do projeto antes de criar arquivos. Use `/hybrid-start` (Claude Code) ou `$hybrid-start` (Codex) com a demanda. Ele aplica primeiro o filtro de escopo: pedidos pequenos seguem como trabalho direto, sem artefatos nem runner. Para preparar o layout local, execute:
 
 ```text
 python .hybrid/hybrid.py init --project . --mode standard --json
@@ -16,7 +16,7 @@ Crie `docs/project/vision.md` somente para planejamento de produto, `roadmap.md`
 2. `$hybrid-domain` atualiza o vocabulário e ADRs seletivos. O glossário não recebe solução técnica.
 3. `$hybrid-specify` escreve `spec.md` com `FR`/`AC` estáveis, erros, limites, escopo e sucesso. Para uma função pequena, escolha `change.md` compacto.
 4. `$hybrid-plan` lê código e testes, escolhe Modules/Interfaces/Seams e registra abordagem, compatibilidade, riscos, obrigações e comandos de verificação. Use Context7 para documentação atual de uma dependência relevante.
-5. `$hybrid-slice` cria tickets verticais. Cada ticket tem o pacote completo para uma sessão nova: objetivo, exclusões, leitura, símbolos existentes/novos, decisões, contrato, exemplos, dependências, sequência, validação e retorno.
+5. `$hybrid-slice` propõe o fatiamento, pede uma confirmação e cria tickets verticais. Cada ticket traz o mínimo para uma sessão nova: objetivo e exclusões, leitura em ordem, exemplos de aceite e validação. Decisões, mapa de alterações e contrato técnico entram só quando são específicos do ticket.
 6. `$hybrid-check --mode consistency` verifica as relações antes da execução. Corrija o artefato proprietário; não mude aceites para acomodar um ticket errado.
 
 O script calcula o próximo ID, valida referências e detecta ciclos:
@@ -54,10 +54,10 @@ Passe à executora:
 - dependências satisfeitas e comando/procedimento de validação;
 - somente os limites de edição de `owned_areas` necessários à fatia.
 
-O comando de pacote mostra a prontidão e os campos que o consumidor seguinte encontra:
+Uma única chamada mostra a prontidão e aponta o ticket a ler (`package --ticket TK-003` dá a visão completa, quando necessária):
 
 ```text
-python .hybrid/hybrid.py package --project . --effort 014-feature --ticket TK-003 --json
+python .hybrid/hybrid.py next --project . --effort 014-feature --write --json
 ```
 
 `ready: true` exige contrato `accepted`, plano `ready`, revisões atuais, blockers satisfeitos e o pacote completo. Se não estiver pronto, leia `errors`, preserve o trabalho e devolva a lacuna à planejadora.
@@ -66,14 +66,17 @@ A executora começa com `ready`, passa a `in_progress`, executa um caso comporta
 
 ## Verificar e revisar
 
-Use `$hybrid-verify` para executar os comandos reais e registrar `EV-xxx`. Um resultado observado na configuração não é execução. Use `$hybrid-review` para fixar um baseline e fazer dois passes:
+O caminho normal não tem fase de verificação separada. A validação final do ticket roda pelo runner, que executa o comando, grava `EV-xxx` com `exit_code` e avança o ticket para `verified`:
 
-- Standards: regras documentadas e riscos de desenho contextualizados;
-- Spec: comportamento faltante, parcial, incorreto ou fora do escopo.
+```text
+python .hybrid/hybrid.py evidence run --project . --effort 014-feature --ticket TK-003 --acceptance-refs AC-003 --command "python -m pytest tests/x -q" --path src/x --path tests/x --json
+```
 
-Inclua commits, staged, unstaged e arquivos novos relevantes. Review-only produz relatório e não corrige nem publica comentários. `$hybrid-check --mode convergence` procura aceites sem evidência atual e tickets concluídos sem gate.
+`$hybrid-verify` fica para evidência obsoleta, procedimentos manuais ou externos (`evidence add --executed`, que é uma declaração) e gates de entrega que exigem a suíte completa.
 
-Em uma mudança compacta, mantenha tarefas e evidência em `change.md` quando isso for suficiente. Se precisar de um registro estruturado para a verificação, use `evidence add` sem `--ticket`; o runner aceita essa forma somente para esforços compactos e não cria `todo.md`. Resultados executados exigem um `--path` existente para vincular a evidência ao código ou artefato observado.
+`$hybrid-review` roda uma vez por marco, com um baseline fixo e um único comando git (`git status --short` + `git diff <baseline>`). Os eixos Standards e Spec são separados, de preferência em subagentes. Sem achado bloqueante de Spec, cada ticket fecha com `ticket update --status done --review passed`. Review-only produz relatório e não corrige nem publica.
+
+Numa mudança compacta, o próprio `implement` confere o diff contra o `change.md`; a evidência usa `evidence run` sem `--ticket`. `$hybrid-check --mode convergence` serve para auditorias, não para o fluxo normal.
 
 ## Estado e fontes
 

@@ -159,3 +159,27 @@ Referência externa: num mesmo experimento, o Spec Kit gastou ~121 mil tokens co
 8. **Medir em vez de estimar:** um harness A/B com `claude -p --output-format json` (que retorna `num_turns`, `duration_ms`, `usage` e `total_cost_usd`). Usar 3 a 5 tarefas reais, ≥3 execuções por braço, e comparar a mediana do custo por tarefa aprovada. Critério de aceite: ≤10% em tarefas médias, e na rota trivial nenhum overhead.
 
 Fontes: [ETH Zurich, *Evaluating AGENTS.md*](https://arxiv.org/abs/2602.11988) (via [InfoQ](https://infoq.com/news/2026/03/agents-context-file-value-review/) e [agentpatterns.ai](https://agentpatterns.ai/instructions/evaluating-agents-md-context-files/)); [Spec Kit × OpenSpec, comparação de tokens](https://medium.com/it-chronicles/is-your-safe-choice-burning-your-budget-1cfddf8782e4) (artigo inacessível daqui; números do resumo da busca); [Anthropic, *Harnessing Claude's intelligence*](https://claude.com/blog/harnessing-claudes-intelligence) (cache e contexto por turno).
+
+## 7. O que foi implementado (06/10/2026)
+
+- **Filtro de escopo** em `hybrid-start`, `routing.md` e no topo de cada skill: trabalho pequeno segue como trabalho direto, sem artefatos nem runner. Orçamento de chamadas por rota.
+- **Runner:**
+  - `next`, entrada única que substitui `start`, `invalidate`, `session` e `package`;
+  - `evidence run`, que executa o comando, registra `exit_code` e avança o ticket (resolve P3);
+  - transições validadas (P1);
+  - `--review passed` obrigatório para `done` (P2);
+  - `.claude/skills` na instalação (P4);
+  - `agents/openai.yaml` por skill (R1);
+  - renovação por ticket ou ~100 mil tokens (R2).
+- **Skills reescritas:**
+  - referências só sob demanda e sem as seções "Milestone boundary" (R7);
+  - entrevista em rodadas (Matt `grilling`) e questionário para terceiros (Matt `to-questionnaire`);
+  - checagem de lacunas na spec (Spec Kit `/clarify`);
+  - aprovação do fatiamento (Matt `to-tickets`);
+  - revisão com um único comando git, eixos em subagentes e lista de smells (Matt `code-review`);
+  - `verify` restrito a evidência obsoleta, manual ou externa.
+- **Gates G1–G4** definidos em `vocabulary.md` (R4). Novo `diagnosis.md`, adaptado de `diagnosing-bugs`.
+- **Ticket mínimo:** quatro seções obrigatórias; as demais são opcionais.
+- **`scripts/bench_ab.py`** para a medição A/B.
+
+Pendentes, de propósito: constituição (R5), modo `requirements` no `check`, `hybrid-retro`, alinhamento `CONTEXT.md`/`GLOSSARY.md` (R9), idioma único (R8). Ficam para depois da medição, para não acrescentar peso sem dado.

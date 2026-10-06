@@ -283,7 +283,7 @@ class RunnerTests(unittest.TestCase):
             )
             invoke(
                 "ticket", "update", "--project", str(project), "--effort", directory.name,
-                "--ticket", "TK-001", "--status", "done", "--verification-status", "passed",
+                "--ticket", "TK-001", "--status", "done", "--verification-status", "passed", "--review", "passed",
             )
             contract = directory / "spec.md"
             contract.write_text(
@@ -423,7 +423,7 @@ class RunnerTests(unittest.TestCase):
             )
             invoke(
                 "ticket", "update", "--project", str(project), "--effort", directory.name,
-                "--ticket", "TK-001", "--status", "done", "--verification-status", "passed",
+                "--ticket", "TK-001", "--status", "done", "--verification-status", "passed", "--review", "passed",
             )
             invoke("render", "--project", str(project), "--effort", directory.name, "--view", "todo")
             self.assertIn("## [x] TK-001", (directory / "todo.md").read_text(encoding="utf-8"))

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hybrid Domain"
+  short_description: "Maintain glossary and selective ADRs"
+policy:
+  allow_implicit_invocation: false
