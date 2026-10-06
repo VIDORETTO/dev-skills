@@ -96,3 +96,66 @@ Os problemas estão em três frentes: (1) o runner aceita estados que o próprio
 5. **Política:** definir G1 a G4 em `vocabulary.md` (R4); trocar 30 min / 60% pela árvore de fronteira de fase com limite em tokens (R2); definir ou remover "Goal" (R3); trocar as dez seções "Milestone boundary" por um ponteiro de uma linha (R7).
 6. **Artefatos:** template de constituição (R5) e modo `requirements` em `hybrid-check`, inspirado no `/checklist` (Spec Kit).
 7. **Novas skills opcionais:** `hybrid-retro` e, se fizer sentido, `to-questionnaire`.
+
+## 6. Custo em tokens e tempo (meta: ≤10% sobre o uso sem skill)
+
+### O que realmente gera custo
+
+Num loop de agente, cada turno reenvia o contexto inteiro. Logo, tokens cobrados ≈ Σ(contexto em cada turno) ≈ nº de turnos × contexto médio. O tempo depende principalmente do nº de turnos (ida e volta ao modelo + ferramenta) e dos tokens de saída. Daí saem três alavancas, em ordem de impacto:
+
+1. **Turnos extras.** Cada "leia X", "rode Y", "registre Z" vira pelo menos uma chamada, e o agente obedece. O estudo da ETH Zurich sobre AGENTS.md (ICLR 2026) mediu isso: arquivos escritos por desenvolvedores aumentaram o custo em até 19% e o número de passos, com ganho médio de ~4% em sucesso. Os gerados por LLM custaram mais de 20% a mais e reduziram o sucesso em ~3%. A causa principal são as instruções que pedem para explorar e testar mais, não o tamanho do texto.
+2. **Comprimento da sessão.** O custo cresce de forma quadrática com o nº de turnos, então dividir em sessões curtas a partir de um pacote pequeno reduz o custo. É por isso que a correção de `4f89771` (marcos e continuação) foi na direção certa.
+3. **Texto estático lido cedo.** 10 mil tokens lidos no turno 2 são reenviados em todos os turnos seguintes. Com cache, a leitura repetida custa ~10% do preço, mas ainda ocupa a janela e a "smart zone".
+
+### Medição estática do pacote atual
+
+| Item | ≈ tokens |
+| --- | --- |
+| Um `SKILL.md` | 640–1.040 |
+| `bounded-execution.md` (citada por 10 skills) | 1.540 |
+| `operating-contract.md` | 840 |
+| Leitura obrigatória da rota compacta (5 skills + referências) | ~11–13 mil |
+| Saídas JSON do runner (`start`, `session`, `validate`...) | 60–440 cada; `package` ~1.570 |
+| Ticket do exemplo (saída escrita pelo modelo) | ~750 cada |
+
+O runner em si é barato. O custo está no **nº de chamadas que as skills mandam fazer**. Na rota compacta isso dá cerca de 20 a 25 chamadas extras: `start`, `session`, validação, checkpoint, leitura de 3 a 5 referências, `invalidate`, reexecução dos testes no `verify` (que o `implement` já tinha rodado), `evidence add` e cinco comandos git no `review`. Além disso, o usuário precisa digitar 5 comandos.
+
+### Estimativa (modelo, não medição)
+
+Premissas: prompt de sistema de 15 mil tokens. Tarefa pequena: 12 turnos sem skill. Tarefa média: 70 turnos numa única sessão.
+
+| Cenário | Tokens cobrados | Turnos |
+| --- | --- | --- |
+| Pequena: sem skill | ~300 mil | 12 |
+| Pequena: Hybrid atual (rota compacta completa) | **~1,5 M (+400%)** | ~34 |
+| Pequena: Hybrid enxuto (1 skill, ~1,2 mil tokens, 2 chamadas) | ~370 mil (+25%) | 14 |
+| Média: sem skill, 1 sessão | ~4,7 M | 70 |
+| Média: Hybrid atual numa sessão | ~11,8 M (+150%) | ~115 |
+| Média: Hybrid enxuto (sessão de plano + 3 sessões curtas de execução) | ~4,3 M (**−7%**) | ~100 |
+
+Referência externa: num mesmo experimento, o Spec Kit gastou ~121 mil tokens contra ~58 mil do OpenSpec (+109%). Só o planejamento ficou 152% maior. O Hybrid atual tem uma cerimônia parecida com a do Spec Kit.
+
+### Conclusão
+
+- **≤10% é viável em tarefas médias e grandes**, e pode até ficar abaixo do uso sem skill. A condição é que o kit faça três coisas: separar o planejamento da execução em sessões curtas, entregar um pacote pequeno à execução e não acrescentar chamadas ao ciclo de implementação.
+- **Em tarefas pequenas, ≤10% só é viável se o kit quase não atuar.** Duas chamadas extras já representam ~15–25% de uma tarefa de 12 turnos. A rota certa para algo trivial é "não usar o kit". Para algo pequeno mas rastreável, o caminho é uma rota de uma skill, sem referências e com 1 ou 2 chamadas ao runner.
+- A comparação justa é **custo por tarefa concluída corretamente**: o retrabalho do uso sem skill entra na conta. Mesmo assim, a meta proposta mede o overhead bruto.
+
+### Mudanças com maior retorno (ordem sugerida)
+
+1. **Um comando de entrada:** `hybrid.py next --effort <id> --json` substituiria `start` + `session` + `invalidate` + `package`, devolvendo um pacote de ≤600 tokens com o ticket, o que ler e o comando de validação. Economiza 3 ou 4 turnos por sessão.
+2. **`evidence run`:** o runner executa o comando de teste, grava a evidência e avança o status do ticket na mesma chamada. Com isso o `verify` deixa de ser uma fase separada no caminho normal e o teste final não roda duas vezes.
+3. **Orçamento explícito por rota**, escrito no `hybrid-start`:
+   - trivial: 0 artefatos e 0 chamadas ao runner;
+   - compacta: 1 skill, 1 artefato, no máximo 2 chamadas;
+   - padrão: sessão de plano separada e, na execução, no máximo 3 chamadas ao runner por ticket.
+4. **Referências só sob demanda (progressive disclosure):** cada `SKILL.md` deve trazer em linha as 3 a 5 regras que usa sempre. As referências só seriam lidas num caso específico (migração, avaliação externa, conflito). Remover as 10 seções "Milestone boundary" e reduzir `bounded-execution.md` para cerca de 300 tokens.
+5. **Revisão proporcional:**
+   - compacta: nenhuma fase separada; basta um `git diff` comparado com o `change.md` no fim do `implement`;
+   - padrão: uma revisão por marco, em subagente, o que mantém o contexto principal pequeno;
+   - um único comando git (`git status --short` + `git diff <baseline>`) em vez de cinco.
+6. **Renovar a sessão mais cedo:** por ticket ou perto de 80–100 mil tokens, e não com 60% da janela (que numa janela de 1M são 600 mil). O custo é quadrático, então renovar tarde sai caro.
+7. **Template de ticket com seções condicionais:** omitir as que não se aplicam. Hoje são 11 seções e cerca de 670 tokens por ticket, gerados com o modelo mais caro.
+8. **Medir em vez de estimar:** um harness A/B com `claude -p --output-format json` (que retorna `num_turns`, `duration_ms`, `usage` e `total_cost_usd`). Usar 3 a 5 tarefas reais, ≥3 execuções por braço, e comparar a mediana do custo por tarefa aprovada. Critério de aceite: ≤10% em tarefas médias, e na rota trivial nenhum overhead.
+
+Fontes: [ETH Zurich, *Evaluating AGENTS.md*](https://arxiv.org/abs/2602.11988) (via [InfoQ](https://infoq.com/news/2026/03/agents-context-file-value-review/) e [agentpatterns.ai](https://agentpatterns.ai/instructions/evaluating-agents-md-context-files/)); [Spec Kit × OpenSpec, comparação de tokens](https://medium.com/it-chronicles/is-your-safe-choice-burning-your-budget-1cfddf8782e4) (artigo inacessível daqui; números do resumo da busca); [Anthropic, *Harnessing Claude's intelligence*](https://claude.com/blog/harnessing-claudes-intelligence) (cache e contexto por turno).
