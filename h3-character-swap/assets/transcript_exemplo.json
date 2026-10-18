@@ -1,0 +1,179 @@
+{
+ "language": "pt",
+ "words": [
+  {
+   "word": " Pessoal,",
+   "start": 2.72,
+   "end": 3.8,
+   "p": 0.9
+  },
+  {
+   "word": " meu",
+   "start": 3.8,
+   "end": 4.26,
+   "p": 0.99
+  },
+  {
+   "word": " nome",
+   "start": 4.26,
+   "end": 4.48,
+   "p": 1.0
+  },
+  {
+   "word": " é",
+   "start": 4.48,
+   "end": 4.6,
+   "p": 1.0
+  },
+  {
+   "word": " Sherlock",
+   "start": 4.6,
+   "end": 4.92,
+   "p": 0.98
+  },
+  {
+   "word": " Holmes",
+   "start": 4.92,
+   "end": 5.4,
+   "p": 0.99
+  },
+  {
+   "word": " Eu",
+   "start": 5.4,
+   "end": 6.06,
+   "p": 0.08
+  },
+  {
+   "word": " passei",
+   "start": 6.06,
+   "end": 6.6,
+   "p": 1.0
+  },
+  {
+   "word": " 5",
+   "start": 6.6,
+   "end": 6.8,
+   "p": 0.69
+  },
+  {
+   "word": " anos",
+   "start": 6.8,
+   "end": 7.22,
+   "p": 1.0
+  },
+  {
+   "word": " procurando",
+   "start": 7.22,
+   "end": 7.86,
+   "p": 0.99
+  },
+  {
+   "word": " a",
+   "start": 7.86,
+   "end": 8.02,
+   "p": 0.97
+  },
+  {
+   "word": " melhor",
+   "start": 8.02,
+   "end": 8.24,
+   "p": 1.0
+  },
+  {
+   "word": " oficina",
+   "start": 8.24,
+   "end": 9.04,
+   "p": 1.0
+  },
+  {
+   "word": " de",
+   "start": 9.04,
+   "end": 9.68,
+   "p": 0.84
+  },
+  {
+   "word": " motos",
+   "start": 9.68,
+   "end": 10.42,
+   "p": 1.0
+  },
+  {
+   "word": " de",
+   "start": 10.42,
+   "end": 11.26,
+   "p": 0.89
+  },
+  {
+   "word": " Araras",
+   "start": 11.26,
+   "end": 11.8,
+   "p": 0.75
+  },
+  {
+   "word": " E",
+   "start": 11.8,
+   "end": 12.46,
+   "p": 0.56
+  },
+  {
+   "word": " eu",
+   "start": 12.46,
+   "end": 12.6,
+   "p": 0.99
+  },
+  {
+   "word": " finalmente",
+   "start": 12.6,
+   "end": 12.96,
+   "p": 1.0
+  },
+  {
+   "word": " encontrei",
+   "start": 12.96,
+   "end": 13.74,
+   "p": 1.0
+  },
+  {
+   "word": " Tá",
+   "start": 13.74,
+   "end": 14.76,
+   "p": 0.5
+  },
+  {
+   "word": " aqui",
+   "start": 14.76,
+   "end": 15.04,
+   "p": 1.0
+  },
+  {
+   "word": " Motocão",
+   "start": 18.0,
+   "end": 19.08,
+   "p": 0.94
+  },
+  {
+   "word": " Motocenter",
+   "start": 19.08,
+   "end": 19.82,
+   "p": 0.86
+  },
+  {
+   "word": " Pode",
+   "start": 19.82,
+   "end": 21.08,
+   "p": 0.96
+  },
+  {
+   "word": " trazer",
+   "start": 21.08,
+   "end": 21.42,
+   "p": 0.93
+  },
+  {
+   "word": " aqui",
+   "start": 21.42,
+   "end": 21.7,
+   "p": 1.0
+  }
+ ]
+}
