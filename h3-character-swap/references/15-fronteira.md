@@ -33,6 +33,7 @@ Consenso da comunidade: **nenhuma** ferramenta, aberta ou comercial, garante lip
 - **Repositório:** https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI (`loras/minimax_h3_character_swap_v1.1_ref2va_fro.safetensors`, 80 MB, strength 1.0).
 - **Diferença técnica:** o vídeo-fonte entra como **guide latente alinhado** (`MiniMaxH3AddGuide`, `frame_idx=0`). Ele ocupa as mesmas posições espaço-temporais da saída, em vez de entrar como `<Video 1>` de referência. Em tese, prende melhor timing, enquadramento e boca.
 - **Foco declarado da v1.1:** *likeness* (rosto, cabelo, corpo e roupa mais fiéis à referência).
+- **Quando considerar:** é a **alternativa** ao LoRA do akatz quando, depois de 3+ seeds e dos ajustes de `behavior`/máscara/Turbo, a identidade continua fraca (`qa_identity.py`: `id_ref` baixo ou margem pequena contra a fonte) ou o personagem sai pouco parecido. Não empilhar com o v1.5.
 - **Prompt:** template **fixo** de uma linha começando com `body_swap:`. Só se troca o `{details}` (lista de atributos da cabeça aos pés, começando pelo gênero, gerada por modelo de visão). O template completo está no `docs/character-swap.md` do repositório.
 - **Turbo:** 8 steps com o turbo **DMD** `minimax_h3_dmd_ref2va_8step_turbo_pruned` (não o lightx2v).
 - **Máscara:** não usa SAM; a máscara vem de BiRefNet-RMBG. **Não preserva o fundo pela máscara como a ferramenta do akatz**: testar o fundo com `qa_color.py`.

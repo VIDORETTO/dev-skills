@@ -85,6 +85,7 @@ Envie o `final_full.mp4` (e o `final.mp4` de canvas, se útil) e reporte **com n
 | Identidade fraca em giros/close | `character.extra_image` = close nítido do rosto (vira `<Picture 2>`/`<Picture 3>`); comparar pela QA |
 | Identidade derivando no meio de um shot longo | Âncora no meio do shot: `run_job anchor <pod> A3 11,22,33` e `seg … A3 --anchor out/anchor_A3_s22.png` (ou `seg.anchor` no job) ([05-ancora.md](references/05-ancora.md)) |
 | Personagem cartoon/3D (ArcFace não acha rosto) | `settings.identity_backend = "dino"` |
+| Mesmo com 3+ seeds e os ajustes acima, identidade fraca ou personagem pouco parecido com a referência | Propor ao usuário um A/B com o **LoRA alternativo Alissonerdx v1.1** (guide alinhado, foco em semelhança). Não é troca de arquivo: outro grafo e outro prompt, ainda não integrados aos scripts ([15-fronteira.md](references/15-fronteira.md) §1, [README](README.md#lora-alternativo)) |
 
 ## Mapa das referências (leia quando precisar)
 
