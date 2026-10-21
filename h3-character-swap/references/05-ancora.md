@@ -1,5 +1,7 @@
 # 05: Âncora do primeiro frame
 
+> **Atualização de 21/10: escolha as variações com `qa_anchor.py`** (abaixo). Ele reprova exatamente os defeitos que derrubaram a âncora no caso Sherlock (recomposição, escala do rosto, boca diferente, pessoa inventada) e cola o personagem de volta no frame original.
+>
 > **Atualização da rodada 4: a âncora é OPCIONAL, decidir por teste A/B com a QA.** Neste vídeo (selfie em close-up), a âncora gerada pelo Qwen **piorou** o lip sync (correlação de 0,67 para 0,28). O que resolveu o início foi **descrever o sopro e a respiração no prompt** e testar **várias seeds** (a melhor chegou a 0,75). Os argumentos abaixo continuam valendo para planos médios e abertos, mas não são regra.
 
 ## Por que ela é necessária
@@ -24,7 +26,7 @@ Regras da âncora:
 - **Mesmo tamanho e recorte** do vídeo preparado. O nó redimensiona com `lanczos`.
 - **Boca:** a mesma abertura do frame 0 da fonte. A comunidade recomenda que o primeiro frame "já pareça fala".
 - **Iluminação:** a da cena (dia nublado, por exemplo), não a de estúdio da referência.
-- **Revisão:** se a âncora não parecer um frame real do vídeo, refazer antes de gastar GPU no vídeo.
+- **Revisão:** se a âncora não parecer um frame real do vídeo, refazer antes de gastar GPU no vídeo. O `qa_anchor.py` faz essa revisão com números.
 
 ## Resultados reais com Qwen-Image-Edit 2511 (rodada 4)
 
@@ -58,3 +60,41 @@ Ou grave `"anchor": "out/anchor_A3_s22.png"` no segmento A3 do `job.json` para o
 - **Mesmas regras da âncora de 1º frame:** mesma boca, mesma luz, sem pessoa parcial na borda. Gere 3 variações e escolha.
 - **O slot é um só:** se o segmento tem âncora no meio, a `character.extra_image` não entra nele.
 - **Decida por A/B com a QA** (identidade ArcFace e lip sync): no caso Sherlock, a âncora de 1º frame **piorou** o lip sync em close.
+
+## Escolha automática das variações: `qa_anchor.py`
+
+```bash
+python S/run_job.py JOB/job.json anchor <pod> A 11,22,33,44,55     # 5 variações (~85 s cada)
+VPY S/qa_anchor.py JOB/job.json A --set                            # mede, cola de volta e grava a melhor em A1.anchor
+python S/run_job.py JOB/job.json best <pod> A1 11,22,33 --anchor out/anchor_A_s22_paste.png   # A/B contra o best sem âncora
+```
+
+| Medida | O que pega | Reprova |
+|---|---|---|
+| Silhueta (IoU fonte × âncora) | Recomposição, zoom, deslocamento | < 0,5 |
+| Escala do rosto | O Qwen "afasta a câmera" | fora de 0,8–1,25 |
+| Deslocamento do rosto | Rosto fora do lugar | > 0,35 largura de rosto |
+| Diferença de abertura da boca (MAR) | Boca fechada/aberta diferente do frame 0 (o que derrubou o lip sync no Sherlock) | entra na nota (peso 3) |
+| Identidade ArcFace × referência e × pessoa original | Troca que não aconteceu ou rosto misturado | id fonte > 0,5 ou margem < 0,1 |
+| Rostos detectados | Pessoa inventada | mais rostos que a fonte (depois da colagem) |
+| Fundo (PSNR) | Cena alterada | informativo; a versão colada tem o fundo da fonte |
+
+**Colagem (`_paste.png`, padrão):** o personagem da âncora é colado sobre o frame ORIGINAL dentro de uma máscara suave (pessoa da fonte ∪ personagem da âncora). O fundo volta a ser o da fonte, e pessoas inventadas **longe** da original somem. Pessoa inventada encostada na original não dá para separar: a variação é reprovada.
+
+**Teste feito na skill (CPU, frames reais):** cinco variações sintéticas de um frame. O frame sem troca, o personagem com outro enquadramento, o frame "afastado" (zoom 0,7, como o Qwen fazia) e o frame com uma pessoa extra foram reprovados pelos motivos certos; o rosto do personagem na posição e escala da fonte venceu (nota 1,64; identidade 0,91 × fonte −0,15).
+
+**Ainda vale o A/B:** passar no `qa_anchor` garante que a âncora é um frame plausível do vídeo; não garante que o H3 vá sincronizar melhor com ela. Compare `best` com e sem âncora pelo `qa_take.py`.
+
+## Pesquisa (21/10/2026): a técnica e quando ela compensa
+
+**A técnica é comum.** Editar o 1º frame com um editor de imagem e propagar pelo vídeo é o núcleo de vários fluxos: o Viggle-Animate (character replacement a partir de um frame repintado, editado com gpt-image), o Luma Modify (o 1º frame é "optional but preferred") e o modo FL2VA do próprio H3. O consenso das fontes: **quanto mais a âncora respeitar a composição do frame original, mais estável fica a troca**; uma âncora com outra geometria força a performance a "viver" num quadro diferente. Nenhuma fonte trouxe medição de qualidade para o H3 com âncora; a evidência medida é a do caso Sherlock (piorou em close quando a âncora estava desalinhada).
+
+**Quando compensa:** plano médio ou aberto; personagem muito diferente da pessoa original (o modelo não precisa "inventar" a transição no frame 0); início de shot com lip sync fraco que nenhuma seed resolve; e só com uma variação aprovada no `qa_anchor`.
+
+**Quando não compensa:** pessoa entrando pela borda no frame 0; close de selfie em que as seeds sem âncora já passam; quando nenhuma variação passa no `qa_anchor`.
+
+**Editores melhores para close (não testados aqui):** o Qwen-Image-Edit "puro" tende a recompor. LoRAs de troca de cabeça para o Qwen-Image-Edit 2511 preservam a composição por construção, porque mexem só na cabeça:
+- **BFS – Best Face Swap** (Alissonerdx): versões Face/Head para Qwen-Image-Edit 2509/2511 (`bfs_head_v5_2511_original.safetensors`), com a ordem das imagens mudando por versão (Head V3–V5: imagem 1 = corpo, imagem 2 = rosto). O Face V1 troca só o rosto e mantém cabelo, luz e fundo do alvo.
+- **QIE-2511-Guided-Head-Face-Swap** (prithivMLmods): transfere cabeça e identidade preservando luz, pose, composição e geometria do alvo; melhor em retratos fechados.
+
+Eles trocam a **cabeça**, não o figurino: para personagem com roupa muito diferente (caso Sherlock), use-os para o rosto e deixe o corpo para o H3, ou siga com o Qwen + `qa_anchor`. Para adotar um deles: montar o grafo a partir do model card, gerar as variações e passar pelo `qa_anchor` como qualquer outra.

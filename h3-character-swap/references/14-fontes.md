@@ -36,6 +36,7 @@
 - **InsightFace / ArcFace (`buffalo_l`):** https://github.com/deepinsight/insightface
 - **Depth Anything V2 Small:** https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf · **MiDaS:** https://github.com/isl-org/MiDaS
 - **Alissonerdx Character Swap v1.1 (alternativa ao akatz):** https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI · https://comfyui-wiki.com/en/news/2026-10-18-h3-character-swap-v1-1 · https://artrealmai.com/article/minimax-h3-character-swap-lora-v1-1-comfyui · https://comfyui-wiki.com/en/news/2026-10-13-h3-character-swap-live-wallpaper · https://x.com/Alissonerdx/status/2109749038773833731 (detalhes em [19](19-lora-alissonerdx.md))
+- **Âncora de frame editado (pesquisa de 21/10):** Viggle-Animate https://viggle.ai/research/viggle-animate-character-replacement-from-a-repainted-frame · Luma Modify https://docs.lumalabs.ai/docs/modify-video · anchor frame method https://invideo.io/blog/anchor-frame-method-ai-video/ · Scenario https://www.scenario.com/blog/keep-shot-swap-character-p-video-replace-scenario · H3 FL2VA/Ref2VA https://www.domoai.app/blog/minimax-h3-reference-to-video · BFS https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap · QIE-2511 Guided Head Swap https://huggingface.co/prithivMLmods/QIE-2511-Guided-Head-Face-Swap
 - **Comparação de modelos abertos de lip sync (2026):** https://instavar.com/research/ai-video/open-source-lip-sync-models · **ComplexSync (limites de LatentSync/MuseTalk):** https://arxiv.org/html/2609.29225v1
 
 ## Lacunas da pesquisa

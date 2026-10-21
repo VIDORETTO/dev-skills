@@ -124,6 +124,7 @@ O agente chama os scripts por você; os comandos abaixo servem para acompanhar o
 | Criar o pod | `python S/make_pod.py` (JSON para a ferramenta `create-pod` do MCP) |
 | Checar o pod | `python S/run_job.py JOB/job.json check <pod>` |
 | Melhor de 3 seeds | `python S/run_job.py JOB/job.json best <pod> A1 11,22,33` |
+| Âncora de 1º frame (opcional) | `python S/run_job.py JOB/job.json anchor <pod> A 11,22,33` e depois `VPY S/qa_anchor.py JOB/job.json A --set` |
 | Trocar o take escolhido | `python S/run_job.py JOB/job.json select A1 A1_s22` |
 | Encadear o shot | `python S/run_job.py JOB/job.json chain <pod> A [--seeds 11,22]` |
 | QA de um take | `VPY S/qa_take.py JOB/job.json A1 A1_s22` |
@@ -140,8 +141,9 @@ A tabela "Decisões rápidas" do [`SKILL.md`](./SKILL.md) cobre os casos comuns.
 2. **Descrever melhor a boca** no `behavior` do segmento (sopro, pausas, boca pequena).
 3. **Máscara maior** para chapéu, cabelo armado ou capa (`expansion_px` 144–160).
 4. **Base sem Turbo** (`--no-turbo`) em closes difíceis.
-5. **Alavancas experimentais:** guia de profundidade ([`references/16-guia-profundidade.md`](./references/16-guia-profundidade.md)), referência extra, âncora no meio do shot, `lipfix`.
-6. **Trocar de LoRA**: veja a seção seguinte.
+5. **Âncora de 1º frame** (o frame da fonte já com o personagem, escolhida pelo `qa_anchor.py`) em planos médios/abertos: [`references/05-ancora.md`](./references/05-ancora.md).
+6. **Alavancas experimentais:** guia de profundidade ([`references/16-guia-profundidade.md`](./references/16-guia-profundidade.md)), referência extra, âncora no meio do shot, `lipfix`.
+7. **Trocar de LoRA**: veja a seção seguinte.
 
 <a id="lora-alternativo"></a>
 
@@ -230,6 +232,7 @@ h3-character-swap/
     ├── composite.py       # final em resolução cheia sobre o vídeo original
     ├── make_guide.py      # clipes-guia de profundidade/face mesh (experimental)
     ├── qa_take.py         # QA completa de um take, com nota
+    ├── qa_anchor.py       # escolhe e cola de volta a melhor âncora de frame
     ├── qa_lipsync.py      # boca gerada x boca da fonte
     ├── qa_syncnet.py      # boca gerada x áudio (SyncNet)
     ├── qa_identity.py     # identidade (ArcFace/DINOv2)

@@ -422,6 +422,8 @@ elif CMD == "anchor":
     for s, pid in pids:
         outs = pod.wait(pid, "15")
         pod.fetch(outs["15"]["images"][0], os.path.join(D, "out", f"anchor_{target}_s{s}.png"))
+    print(f"Escolha pela QA (composição, escala do rosto, boca, identidade, pessoa extra; cola de volta no frame original):\n"
+          f"  VPY S/qa_anchor.py {JOB_PATH} {target} --set")
 elif CMD == "seg":
     run_segment(Pod(sys.argv[3]), sys.argv[4], opt("--seed"), **common_kw())
 elif CMD == "best":

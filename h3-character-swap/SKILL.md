@@ -18,7 +18,7 @@ O fluxo é longo e caro em GPU, e cada regra abaixo existe porque a sua ausênci
 5. **Prompt por segmento** com o diálogo transcrito em `<d>[Língua] …</d>` **e as ações não verbais com tempo** (sopro, respiração, pausa, riso). O lip sync do H3 é dirigido pelo texto + áudio. Descrever o sopro do usuário levou a correlação de 0,41 a 0,67.
 6. **Voz isolada (Demucs) no condicionamento, áudio original na entrega.** Ruído confunde a boca. Trocar o áudio depois (remux) nunca conserta lip sync.
 7. **Segmentos de ~4–6,5 s**, cortados nas pausas e encadeados por 18 frames de histórico. Acima de ~10 s o LoRA perde identidade e lip sync (palavra do próprio autor). O ponto ideal é 124 frames.
-8. **Âncora de 1º frame é opcional; decida por A/B.** Em close de selfie, a âncora do Qwen derrubou o lip sync de 0,67 para 0,28. Com a pessoa parcial na borda, ela inventou uma segunda pessoa.
+8. **Âncora de 1º frame é opcional; decida por A/B.** Em close de selfie, a âncora do Qwen derrubou o lip sync de 0,67 para 0,28. Com a pessoa parcial na borda, ela inventou uma segunda pessoa. Se for usar, escolha a variação com `qa_anchor.py`, que reprova esses defeitos e cola o personagem de volta no frame original.
 9. **Seeds variam muito** (0,58 contra 0,75 com o mesmo prompt). Teste 2–3 seeds no 1º segmento de cada shot e escolha pela QA.
 10. **Medir antes de entregar:** `qa_take.py` (lip sync MAR + SyncNet, identidade ArcFace, máscara) por take e `qa_color.py` no final. Grades de frames esconderam o lip sync ruim, e a medição o revelou. A identidade se mede contra a referência **e** contra a pessoa original: margem pequena = vazamento.
 11. **Ler a saída só do nó 807 (pelo ID).** O history do ComfyUI também lista o vídeo de entrada, e isso já produziu um falso "não trocou".
@@ -69,7 +69,7 @@ Envie o `final_full.mp4` (e o `final.mp4` de canvas, se útil) e reporte **com n
 | Situação | Decisão |
 |---|---|
 | Close de selfie, fala | Sem âncora; `behavior` detalhado; 2–3 seeds no 1º segmento |
-| Plano médio ou aberto, personagem bem diferente | Testar âncora (`make_pod --qwen`, `run_job anchor`, 3 seeds); usar só se a QA melhorar |
+| Plano médio ou aberto, personagem bem diferente | Testar âncora (`make_pod --qwen`, `run_job anchor` com 3–5 seeds, `qa_anchor.py --set` para escolher e colar de volta); usar só se a QA do vídeo melhorar |
 | Pessoa entra ou sai pela borda no 1º frame do shot | Nunca usar âncora nesse shot |
 | Chapéu, cabelo armado, capa | `expansion_px` de 144–160; conferir com `qa_mask.py` |
 | Várias pessoas na cena | `sam_text` específico ("bald man in dark t-shirt"), `selection` (`largest`, `leftmost`, `rightmost`, `index`) |
@@ -123,6 +123,7 @@ Envie o `final_full.mp4` (e o `final.mp4` de canvas, se útil) e reporte **com n
 | `composite.py` | venv | **Final em resolução cheia**: personagem colado sobre o vídeo original com máscara suave e estável no tempo |
 | `make_guide.py` | venv | Clipes-guia (profundidade colorida e/ou face mesh no lugar da pessoa) para o A/B do `--guide` |
 | `qa_take.py` | venv | QA completa de um take com nota única (usada pelo `best`) |
+| `qa_anchor.py` | venv | Mede as variações de âncora (composição, escala do rosto, boca, identidade, pessoa extra), cola o personagem de volta no frame original e escolhe a melhor |
 | `qa_lipsync.py` | venv | Correlação da boca com a FONTE por segundo, atraso e amplitude |
 | `qa_syncnet.py` | venv + torch | Sincronia da boca com o ÁUDIO (SyncNet: LSE-C/LSE-D, offset, janelas) |
 | `qa_identity.py` | venv | Identidade ArcFace contra a referência e contra a pessoa original (vazamento); `dino` para personagem estilizado |
