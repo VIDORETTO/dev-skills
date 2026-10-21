@@ -14,6 +14,7 @@
    - em cada segmento: `dialogue` (corrigir a transcrição), `speaker` e `behavior` (ações não verbais **com tempos relativos ao segmento**: sopro, respiração, pausas, giro de câmera, entrada e saída de quadro);
    - `settings.expansion_px`: 144 para figurino volumoso;
    - `settings.use_anchor`: false é o padrão validado. Ligar só depois de um teste A/B.
+   - opcional: `character.extra_image` (close do rosto/folha do figurino) e, para testar a técnica do Genjutsu, `VPY S/make_guide.py JOB/job.json --mode depth_mesh --segs A1` ([16](16-guia-profundidade.md)).
 3. **Conferir o prompt de cada segmento:**
    ```
    python S/run_job.py JOB/job.json prompt A1
@@ -32,26 +33,32 @@
    python S/run_job.py JOB/job.json check <pod>
    ```
    Todos os nós devem dar `True`, e as listas de modelos devem estar preenchidas e com `--extra-model-paths-config` no argv.
-7. **Primeiro segmento de cada shot, com seeds:**
+7. **Primeiro segmento de cada shot, best-of-N:**
    ```
-   python S/run_job.py JOB/job.json seg <pod> A1 --seed 31337   (repetir com 2–3 seeds)
+   python S/run_job.py JOB/job.json best <pod> A1 31337,777,11    (opcional: --guide MODO, --no-turbo)
    ```
-   Shots independentes, como o C1, podem entrar na fila junto.
-8. **QA por take** ([09-qa.md](09-qa.md)): `qa_lipsync.py` contra o trecho da fonte no canvas. Depois:
+   Gera um take por seed, roda `qa_take.py` em cada (python do venv via `H3_VPY`) e seleciona a maior nota. Shots independentes, como o C1, podem entrar na fila junto.
+8. **Conferir o vencedor** ([09-qa.md](09-qa.md)) com som; se discordar da nota:
    ```
-   python S/run_job.py JOB/job.json select A1 A1_s31337
+   python S/run_job.py JOB/job.json select A1 A1_s777
    ```
+   O `select` desmarca as continuações que vieram de outro histórico.
 9. **Encadear o resto do shot:**
    ```
-   python S/run_job.py JOB/job.json chain <pod> A
+   python S/run_job.py JOB/job.json chain <pod> A [--seeds 11,22]
    ```
-   A QA continua por segmento. Se um segmento reprovar, rodar `seg … --seed N`, depois `select`, e regerar os seguintes.
-10. **Montar e revisar:**
+   Com `--seeds`, best-of-N em cada segmento. Segmento reprovado: `best`/`seg … --seed N`, `select`, e `chain` de novo (regera só o que dependia dele). Janela curta que nenhuma seed resolve: `lipfix` (pod `--latentsync`).
+10. **Montar e revisar no canvas:**
     ```
     python S/assemble.py JOB/job.json JOB/final.mp4
     ```
-    Em seguida, QA completa (lip sync, máscara, cor) e conferência visual das emendas.
+    Em seguida, QA completa (lip sync, identidade, máscara, cor) e conferência visual das emendas.
 11. **Desligar:** `delete-pod` e, depois, `list-pods` e `list-network-volumes` vazios. Não deixe cobrança parada.
+12. **Final em resolução cheia (CPU, sem pod):**
+    ```
+    VPY S/composite.py JOB/job.json JOB/final_full.mp4 --debug-mask
+    ```
+    Conferir a máscara nos giros e entregar o `final_full.mp4` ([17](17-composite.md)).
 
 ## Gates (não pular)
 
@@ -60,14 +67,14 @@
 | Fonte | SDR natural, 24 fps, shots e segmentos coerentes, sons não verbais rotulados |
 | Prompt | Descrição completa; `behavior` com tempos; nenhum campo "PREENCHER" |
 | Pod | `check` ok antes de enviar o 1º job |
-| 1º segmento | Correlação de lip sync ≥ 0,6 na maioria das janelas de 1 s; chapéu e cabelo inteiros; identidade |
+| 1º segmento | Correlação de lip sync ≥ 0,6 na maioria das janelas de 1 s; SyncNet perto da fonte; identidade `id_ref` ≥ ~0,45 com margem ≥ 0,2 contra a fonte; chapéu e cabelo inteiros |
 | Cada continuação | Emenda sem salto (identidade, luz, posição); QA ok |
-| Final | Frames = fonte; cor ok; nenhuma pessoa em shot `preserve`; áudio original completo |
+| Final | Frames = fonte; cor ok; nenhuma pessoa em shot `preserve`; áudio original completo; `final_full` sem halo na borda |
 
 ## Ordem de prioridade quando algo dá errado
 
 1. Ler a seção correspondente em [10-falhas.md](10-falhas.md). Quase tudo já aconteceu uma vez.
-2. Trocar a seed. É a variável mais barata e com o maior efeito.
+2. Trocar a seed (`best` com 2–3 seeds). É a variável mais barata e com o maior efeito.
 3. Ajustar o `behavior` (descrever melhor o que a boca faz).
 4. Ajustar a máscara (`--expansion`).
 5. Só então mexer em sampler, steps ou Turbo ([06-parametros.md](06-parametros.md)).

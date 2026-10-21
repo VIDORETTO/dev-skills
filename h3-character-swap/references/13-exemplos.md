@@ -45,16 +45,20 @@ A continuação acrescenta, depois da descrição: "<Picture 2> is the generated
 ```json
 {
  "canvas": {"resolution": "768", "width": 736, "height": 1344},
- "character": {"image": "C:/.../character.png", "description": "..."},
- "settings": {"expansion_px": 144, "lora": "h3_character_swap_v1.5.safetensors", "turbo": true, "steps": 8,
-              "sam_text": "person", "selection": "largest", "language": "Portuguese", "use_anchor": false},
+ "character": {"image": "C:/.../character.png", "extra_image": null, "description": "..."},
+ "settings": {"expansion_px": 144, "lora": "h3_character_swap_v1.5.safetensors", "turbo": true, "steps": 8, "base_steps": 20,
+              "sam_text": "person", "selection": "largest", "language": "Portuguese", "use_anchor": false,
+              "guide": null, "identity_backend": "arcface"},
  "shots": [
   {"id": "A", "mode": "generate", "start": 0, "end": 372, "segments": [
     {"id": "A1", "start": 0, "end": 130, "history": 0, "window": 141, "dialogue": "Pessoal, meu nome é Sherlock Holmes.",
      "speaker": "target", "nonverbal": [{"t0": 0.5, "t1": 1.9, "type": "vocal_nonspeech", "label": "sopro"}],
-     "behavior": "From 0.5 s to about 1.9 s ...", "seed": 31337, "selected_take": "A1_s31337", "clip": "clips/A1.mp4"},
+     "behavior": "From 0.5 s to about 1.9 s ...", "seed": 31337, "selected_take": "A1_s31337", "clip": "clips/A1.mp4",
+     "takes": [{"take": "A1_s31337", "seed": 31337, "guide": null, "turbo": true, "history_from": null,
+                "qa": {"score": 1.31, "lipsync_corr": 0.75, "identity_ref": 0.52, "identity_src": 0.08}}]},
     {"id": "A2", "start": 130, "end": 283, "history": 18, "window": 158, "dialogue": "Eu passei 5 anos procurando ...",
-     "speaker": "target", "behavior": "He speaks continuously ...", "seed": 904240, "clip": "clips/A2.mp4"}]},
+     "speaker": "target", "behavior": "He speaks continuously ...", "seed": 904240, "clip": "clips/A2.mp4",
+     "anchor": null, "selected_take": "A2_s904240_h3f9a"}]},
   {"id": "B", "mode": "preserve", "start": 372, "end": 442},
   {"id": "C", "mode": "generate", "start": 442, "end": 540, "segments": [ ... ]}]
 }

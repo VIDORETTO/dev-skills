@@ -42,4 +42,19 @@ Regras da âncora:
 
 - **Nó 309:** `H3CharacterSwapOptionalAnchor`, com `image` igual ao arquivo enviado. Quando a imagem existe, `use_anchor` liga sozinho.
 - **Prompt:** incluir "<Picture 2> is the exact first-frame scene and pose anchor."
-- **Segmentos de continuação:** não usam âncora. Usam o histórico gerado: "<Picture 2> is the generated boundary from the preceding segment."
+- **Segmentos de continuação:** o 1º slot é sempre o histórico gerado: "<Picture 2> is the generated boundary from the preceding segment." Uma âncora nova entra no 3º slot (abaixo).
+
+## Âncora no meio do shot (continuações) — experimental
+
+A ferramenta fixada aceita uma imagem extra nas continuações (`803.segment_reference` → `ref_image_2` → `<Picture 3>`); o app oficial usa isso com o texto "<Picture 3> is an additional scene and performance reference for this segment; preserve continuity with the generated boundary." Serve para **segurar a identidade num shot longo** quando ela deriva nos segmentos finais.
+
+```bash
+python S/run_job.py JOB/job.json anchor <pod> A3 11,22,33          # 1º frame do SEGMENTO A3 editado pelo Qwen
+python S/run_job.py JOB/job.json seg <pod> A3 --anchor out/anchor_A3_s22.png
+```
+
+Ou grave `"anchor": "out/anchor_A3_s22.png"` no segmento A3 do `job.json` para o `chain` usar sozinho. O `prepare.py` já extrai `frames/<seg>_0.png` de cada segmento (jobs antigos: o `run_job` extrai na hora).
+
+- **Mesmas regras da âncora de 1º frame:** mesma boca, mesma luz, sem pessoa parcial na borda. Gere 3 variações e escolha.
+- **O slot é um só:** se o segmento tem âncora no meio, a `character.extra_image` não entra nele.
+- **Decida por A/B com a QA** (identidade ArcFace e lip sync): no caso Sherlock, a âncora de 1º frame **piorou** o lip sync em close.

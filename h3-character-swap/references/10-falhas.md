@@ -1,4 +1,4 @@
-# 09: Registro de falhas (para não repetir)
+# 10: Registro de falhas (para não repetir)
 
 | # | Rodada | Sintoma | Causa raiz | Correção / regra |
 |---|---|---|---|---|
@@ -25,3 +25,7 @@
 | 21 | skill | QA de cor acusou −30 de Y no vídeo inteiro | O figurino escuro no lugar da pele clara muda o Y médio do quadro (não é defeito) | `qa_color.py` mede **só o fundo** (fora das pessoas, dilatado 180 px). Fundo real: Δ ≈ −3 (ok) |
 | 22 | skill | Whisper omitiu "Motocão" numa execução e não na outra | Variação do Whisper | Revisar `dialogue` à mão; a transcrição é rascunho |
 | 23 | 18/10 | O `main` da h3-character-swap-tool removeu `worker_nodes/h3_character_swap` (refactor Relay 2.0 em 17/10) | Clonar `main` sem fixar versão quebraria o boot | `make_pod.py` faz checkout do commit validado `0670e4fdf95a`. Revalide antes de migrar |
+| 24 | skill | `prepare.py` quebrava (`min() arg is an empty sequence`) em shots de 158–179 frames (e 288–309, 418–439…) | Em `split()`, quando o resto fica entre `max` e `max+min`, `hi = e−min` < `lo` | Corrigido em 21/10: nesse caso corta perto do meio. Testado de 22 a 3000 frames |
+| 25 | skill | Depois de `select A1 <outro take>`, o `chain` pulava o A2 antigo (gerado com o histórico do A1 anterior) e a montagem saía com emenda errada | O `chain` só checava se havia take escolhido | Corrigido em 21/10: cada take grava `history_from`; `select` desmarca os seguintes de outro histórico; `chain` regera só esses; `assemble`/`composite` recusam montar |
+| 26 | skill | Regerar uma continuação com a mesma seed e outro histórico sobrescrevia o take antigo | O nome do take era só `<seg>_s<seed>` | Continuações levam `_hXXXX` (marca do take anterior); os dois takes convivem |
+| 27 | skill | Download de modelo falhando 3 vezes no boot passava em silêncio; o erro só aparecia no 1º job | O laço de download não verificava o resultado | `make_pod.py` imprime `SEED_FAILED`/`BOOT_ABORT` e o ComfyUI não sobe (pod fica de pé para ler o log) |

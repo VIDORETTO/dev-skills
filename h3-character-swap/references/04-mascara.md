@@ -39,7 +39,8 @@ A máscara nasce da silhueta da **pessoa original** (careca) mais um raio fixo d
 
 - **O que olhar:** o nó 111/112 (`ImageFromBatch` → `PreviewImage`) mostra o overlay verde. Revisar o frame de maior close, o de cabeça mais alta, o de maior giro e o primeiro e o último do shot.
 - **Execução parcial:** rodar só até a prévia da máscara (execução parcial no ComfyUI) antes da geração completa.
-- **Depois de gerar:** usar `maskcheck.py` para medir quanto do personagem gerado cai fora da máscara. No caso real, o frame 200 teve 14,8% fora.
+- **Depois de gerar:** usar `qa_mask.py` (ou o `qa_take.py`, que já o inclui) para medir quanto do personagem gerado cai fora da máscara. No caso real, o frame 200 teve 14,8% fora.
+- **Guia de profundidade (`--guide`):** a máscara continua vindo do clipe original; a pintura do guia fica dentro dela ([16](16-guia-profundidade.md)).
 
 ## Máscara salva (fluxo do app)
 

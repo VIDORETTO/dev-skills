@@ -13,6 +13,19 @@ Pesquisa feita em 18/10/2026, cobrindo os últimos ~3 meses: HF, GitHub, r/Stabl
 
 Consenso da comunidade: **nenhuma** ferramenta, aberta ou comercial, garante lip sync ou identidade. Os resultados são probabilísticos e dependem da seed. A deriva piora com clipes longos, rosto pequeno, oclusão, movimento rápido e proporções muito diferentes.
 
+## O que já virou ferramenta (21/10/2026)
+
+| Alavanca | Onde | Status |
+|---|---|---|
+| Final em resolução cheia sobre o vídeo original | `composite.py` ([17](17-composite.md)) | Testado (geometria conferida contra o ffmpeg; fundo = fonte) |
+| QA de identidade (ArcFace, vazamento da pessoa original) | `qa_identity.py` | Testado com rostos reais (mesma pessoa 0,82; outra −0,10) |
+| Lip sync contra o áudio (SyncNet LSE-C/D) | `qa_syncnet.py` | Fluxo testado; o modelo oficial ainda não rodou nesta skill |
+| Best-of-N automático | `run_job.py best`, `chain --seeds` | Fluxo testado contra um ComfyUI simulado |
+| Guia de profundidade/face mesh (Genjutsu) | `make_guide.py` + `--guide` ([16](16-guia-profundidade.md)) | **Experimental**: sem geração real |
+| Reparo de boca por janela (LatentSync 1.6) | `make_pod --latentsync` + `run_job lipfix` | **Experimental**: sem geração real |
+| Âncora no meio do shot / referência extra | `seg --anchor` em continuação, `character.extra_image` | **Experimental**: sem geração real |
+| Base sem Turbo | `seg|best --no-turbo` | Já existia como `settings.turbo`; agora por take |
+
 ## Alavancas ainda não testadas (por ordem de custo/benefício)
 
 ### 1. Alissonerdx Character Swap **v1.1**, alternativa ao LoRA do akatz (lançado em 13/10/2026)
@@ -24,7 +37,7 @@ Consenso da comunidade: **nenhuma** ferramenta, aberta ou comercial, garante lip
 - **Turbo:** 8 steps com o turbo **DMD** `minimax_h3_dmd_ref2va_8step_turbo_pruned` (não o lightx2v).
 - **Máscara:** não usa SAM; a máscara vem de BiRefNet-RMBG. **Não preserva o fundo pela máscara como a ferramenta do akatz**: testar o fundo com `qa_color.py`.
 - **Licença própria:** uso comercial livre. Empresas com mais de US$ 1 M precisam dar crédito. Proibido oferecer como API ou SaaS.
-- **Como testar:** A/B no 1º segmento contra a receita atual, com a mesma seed e o mesmo `qa_lipsync`. Uma combinação a explorar é a máscara SAM do akatz com o guide alinhado do Alissonerdx, mas isso exige grafo próprio.
+- **Como testar:** A/B no 1º segmento contra a receita atual, com a mesma seed e o mesmo `qa_take`. Uma combinação a explorar é a máscara SAM do akatz com o guide alinhado do Alissonerdx, mas isso exige grafo próprio. **Ainda não implementado**: a documentação do pacote está no Hugging Face (`docs/character-swap.md`) e o grafo precisa ser montado e validado a partir dela, não de memória.
 
 ### 2. Combinar com o **Head Swap** (Alissonerdx `head_swap:`) para o lip sync
 

@@ -23,6 +23,20 @@ Current segment dialogue: "{PALAVRAS DO SEGMENTO}". Follow source audio timing. 
 <Audio 1> and source video determine exact timing. Do not repeat earlier dialogue or invent words, gestures, people or camera cuts. Retain the scene outside the person region. Output the raw decoded generation.
 ```
 
+### Rótulos das imagens (a ordem é a do envio)
+
+A ferramenta envia as imagens nesta ordem e rotula `<Picture N>` só as que existem: personagem, [âncora do 1º frame **ou** boundary gerado], [slot extra]. O `run_job.py` numera sozinho:
+
+| Situação | `<Picture 1>` | `<Picture 2>` | `<Picture 3>` |
+|---|---|---|---|
+| 1º segmento, sem âncora | personagem | referência extra (se houver) | — |
+| 1º segmento, com âncora | personagem | âncora | referência extra (se houver) |
+| Continuação | personagem | boundary gerado | âncora no meio do shot **ou** referência extra |
+
+- **Referência extra** (`character.extra_image`): "an additional identity reference of the same character from <Picture 1> (face and costume detail); use it only for appearance". Use um close nítido do rosto ou a folha do figurino. Teste por A/B.
+- **Guia de profundidade/face mesh** (`--guide`): o prompt ganha a explicação do guia e "Remove all depth colors and mesh lines from the output" ([16](16-guia-profundidade.md)).
+- Confira sempre com `run_job.py JOB prompt <seg> [--guide MODO]`.
+
 Frases de "quem fala":
 
 | Modo | Frase |

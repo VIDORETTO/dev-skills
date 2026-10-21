@@ -1,4 +1,4 @@
-# 10: Fontes
+# 14: Fontes
 
 ## Oficiais (prioridade máxima)
 
@@ -26,6 +26,16 @@
   - https://www.ambienceai.com/tutorials/minimax-h3-prompting-guide
   - https://www.rundiffusion.com/minimax-h3-prompt-guide
 - **Grow mask para personagem maior, cabelo e acessórios (Wan Animate, princípio análogo):** https://www.runcomfy.com/comfyui-workflows/wan-2-2-animate-swap-characters-lip-sync-workflow-comfyui
+
+## Usadas nas melhorias de 21/10/2026
+
+- **Genjutsu-Skill (profundidade + face mesh no lugar da pessoa, rascunho → HD, áudio original):** https://github.com/SaeedAngiz1/Genjutsu-Skill
+- **Ferramenta 0.2.0 / Relay 2.0 (PRs de 17/10):** https://github.com/akatz-labs/h3-character-swap-tool/pull/1 · https://github.com/akatz-ai/h3-relay/pull/1 · `docs/toolkit-v2.md`
+- **SyncNet oficial (LSE-C/LSE-D):** https://github.com/joonson/syncnet_python (modelo `syncnet_v2` da VGG/Oxford)
+- **LatentSync 1.6 (reparo de boca, 512 px, ~18 GB de VRAM):** https://github.com/bytedance/LatentSync · https://huggingface.co/ByteDance/LatentSync-1.6
+- **InsightFace / ArcFace (`buffalo_l`):** https://github.com/deepinsight/insightface
+- **Depth Anything V2 Small:** https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf · **MiDaS:** https://github.com/isl-org/MiDaS
+- **Comparação de modelos abertos de lip sync (2026):** https://instavar.com/research/ai-video/open-source-lip-sync-models · **ComplexSync (limites de LatentSync/MuseTalk):** https://arxiv.org/html/2609.29225v1
 
 ## Lacunas da pesquisa
 
