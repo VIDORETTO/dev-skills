@@ -15,11 +15,12 @@
    - `settings.expansion_px`: 144 para figurino volumoso;
    - `settings.use_anchor`: false é o padrão validado. Ligar só depois de um teste A/B.
    - opcional: `character.extra_image` (close do rosto/folha do figurino) e, para testar a técnica do Genjutsu, `VPY S/make_guide.py JOB/job.json --mode depth_mesh --segs A1` ([16](16-guia-profundidade.md)).
-3. **Conferir o prompt de cada segmento:**
+3. **Âncora (opcional): perguntar ao usuário quem faz.** Se ele fizer: `python S/anchor_kit.py JOB/job.json A`, explicar o `anchor_kit/COMO_FAZER.md`, esperar as imagens em `JOB/anchors_user/` e rodar `VPY S/qa_anchor.py JOB/job.json A --set`. Se a IA fizer: anotar `--qwen` para o pod ([05](05-ancora.md#quem-faz-a-âncora)).
+4. **Conferir o prompt de cada segmento:**
    ```
    python S/run_job.py JOB/job.json prompt A1
    ```
-4. **Estimar custo e pedir o OK do usuário.** Só então criar o pod.
+5. **Estimar custo e pedir o OK do usuário.** Só então criar o pod.
 
 ## Fase B: GPU (RunPod)
 

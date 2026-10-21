@@ -56,6 +56,10 @@ Escreva `character.description` com rosto (idade aparente, pele, formato, olhos,
 
 Diga o custo estimado ao usuário e confirme **antes** de criar o pod.
 
+## 5b. Âncora: quem faz (antes do pod)
+
+Se algum shot pede âncora (plano médio ou aberto, personagem muito diferente), pergunte ao usuário se **ele** faz no Nano Banana / GPT Image (`anchor_kit.py`), se **a IA** faz com o Qwen no pod (`make_pod --qwen`) ou se segue **sem âncora**. Modelo da pergunta, prós e contras e passo a passo em [05-ancora.md](05-ancora.md#quem-faz-a-âncora). Se ele fizer, espere as imagens e rode o `qa_anchor.py --set` **antes** de pedir o OK do pod.
+
 ## 6. Relatório prévio ao usuário (modelo)
 
 ```
@@ -64,6 +68,7 @@ Análise prévia — <vídeo>
 • Shots: A (0–15,5 s) gerar · B (15,5–18,4 s) original, sem pessoa · C (18,4–22,5 s) gerar
 • Segmentos: A1 5,4 s (sopro 0,5–1,9 s + "Pessoal, meu nome é…") · A2 6,4 s · A3 3,7 s · C1 4,1 s
 • Riscos: close extremo (lip sync); fala de boca pequena; chapéu maior que a cabeça (máscara 144 px); giro rápido aos 15 s
+• Âncora: A sim (você faz no Nano Banana/GPT Image, eu faço com o Qwen ou sem âncora?) · C não (pessoa entra pela borda)
 • Plano: 3 seeds no A1 → escolher pela QA → encadear A2/A3 → C1 → montar
 • Estimativa: ~40 min de GPU, ~US$ 1,70. Posso criar o pod?
 ```

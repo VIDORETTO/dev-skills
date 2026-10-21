@@ -55,7 +55,7 @@ flowchart LR
 ```
 
 1. **Análise (CPU, grátis):** o agente prepara os clipes, transcreve a fala, marca os sons sem palavra e escreve um relatório com shots, segmentos, riscos e custo estimado.
-2. **Você aprova** o plano e o custo.
+2. **Você aprova** o plano e o custo e, se algum shot pedir âncora, escolhe se você mesmo a faz no Nano Banana / GPT Image ou se a IA faz com o Qwen.
 3. **GPU curta:** o agente cria o pod, gera 2–3 seeds do primeiro segmento de cada shot, fica com o melhor pela QA e encadeia o resto.
 4. **Entrega:** desliga o pod, monta o vídeo final em resolução cheia com o áudio original e reporta os números (lip sync, identidade, cor, custo).
 
@@ -124,7 +124,8 @@ O agente chama os scripts por você; os comandos abaixo servem para acompanhar o
 | Criar o pod | `python S/make_pod.py` (JSON para a ferramenta `create-pod` do MCP) |
 | Checar o pod | `python S/run_job.py JOB/job.json check <pod>` |
 | Melhor de 3 seeds | `python S/run_job.py JOB/job.json best <pod> A1 11,22,33` |
-| Âncora de 1º frame (opcional) | `python S/run_job.py JOB/job.json anchor <pod> A 11,22,33` e depois `VPY S/qa_anchor.py JOB/job.json A --set` |
+| Âncora feita por você (Nano Banana / GPT Image) | `python S/anchor_kit.py JOB/job.json A`, siga `JOB/anchor_kit/COMO_FAZER.md`, devolva em `JOB/anchors_user/` e rode `VPY S/qa_anchor.py JOB/job.json A --set` |
+| Âncora feita pela IA (Qwen no pod `--qwen`) | `python S/run_job.py JOB/job.json anchor <pod> A 11,22,33` e depois `VPY S/qa_anchor.py JOB/job.json A --set` |
 | Trocar o take escolhido | `python S/run_job.py JOB/job.json select A1 A1_s22` |
 | Encadear o shot | `python S/run_job.py JOB/job.json chain <pod> A [--seeds 11,22]` |
 | QA de um take | `VPY S/qa_take.py JOB/job.json A1 A1_s22` |
@@ -141,7 +142,7 @@ A tabela "Decisões rápidas" do [`SKILL.md`](./SKILL.md) cobre os casos comuns.
 2. **Descrever melhor a boca** no `behavior` do segmento (sopro, pausas, boca pequena).
 3. **Máscara maior** para chapéu, cabelo armado ou capa (`expansion_px` 144–160).
 4. **Base sem Turbo** (`--no-turbo`) em closes difíceis.
-5. **Âncora de 1º frame** (o frame da fonte já com o personagem, escolhida pelo `qa_anchor.py`) em planos médios/abertos: [`references/05-ancora.md`](./references/05-ancora.md).
+5. **Âncora de 1º frame** (o frame da fonte já com o personagem) em planos médios/abertos. Antes do pod, o agente pergunta se você prefere fazer no Nano Banana ou no GPT Image (ele prepara o frame, o prompt e o passo a passo) ou se ele faz com o Qwen no pod: [`references/05-ancora.md`](./references/05-ancora.md).
 6. **Alavancas experimentais:** guia de profundidade ([`references/16-guia-profundidade.md`](./references/16-guia-profundidade.md)), referência extra, âncora no meio do shot, `lipfix`.
 7. **Trocar de LoRA**: veja a seção seguinte.
 
@@ -232,7 +233,8 @@ h3-character-swap/
     ├── composite.py       # final em resolução cheia sobre o vídeo original
     ├── make_guide.py      # clipes-guia de profundidade/face mesh (experimental)
     ├── qa_take.py         # QA completa de um take, com nota
-    ├── qa_anchor.py       # escolhe e cola de volta a melhor âncora de frame
+    ├── anchor_kit.py      # pacote para você fazer a âncora no Nano Banana / GPT Image
+    ├── qa_anchor.py       # alinha, mede, cola de volta e escolhe a melhor âncora de frame
     ├── qa_lipsync.py      # boca gerada x boca da fonte
     ├── qa_syncnet.py      # boca gerada x áudio (SyncNet)
     ├── qa_identity.py     # identidade (ArcFace/DINOv2)

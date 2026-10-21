@@ -46,19 +46,24 @@ Ele gera `JOB/analysis.md`, `job.json` (rascunho), `clips/` (já com a voz isola
 - **Escrever `behavior` em cada segmento:** ações com tempos relativos.
 - **Ajustar `settings.expansion_px`.**
 - **Conferir os prompts:** `python S/run_job.py JOB/job.json prompt <seg>`.
+- **Âncora de 1º frame: pergunte ao usuário quem faz, ANTES do pod** ([05-ancora.md](references/05-ancora.md#quem-faz-a-âncora)). Diga em quais shots você recomenda âncora e em quais não (pessoa entrando pela borda, close de selfie que já funciona sem). Ofereça as três opções:
+  1. **O usuário faz** no Nano Banana (Gemini) ou no GPT Image (ChatGPT): rode `python S/anchor_kit.py JOB/job.json <shots>`, mostre o `anchor_kit/COMO_FAZER.md` e o prompt, e **espere ele devolver as imagens** (em `JOB/anchors_user/<id>_vN.png` ou anexadas no chat; salve-as nessa pasta). Depois `VPY S/qa_anchor.py JOB/job.json <id> --set` e mostre o resultado a ele. Sem custo de GPU; os frames vão para o Google/OpenAI.
+  2. **A IA faz com o Qwen** no pod: o pod sai com `make_pod.py --qwen` (mais ~31 GB de download e disco de 180 GB) e as variações são geradas na Fase B (~85 s cada).
+  3. **Sem âncora:** o padrão validado (caso Sherlock).
 - **Relatório prévio:** apresente ao usuário o plano, os riscos e a estimativa de custo (modelo em [00-analise-previa.md](references/00-analise-previa.md)) e **espere o OK**.
 
 ### Fase B: GPU (RunPod)
 
-1. **Criar o pod:** `python S/make_pod.py [--qwen]` gera o JSON. Passe-o para a ferramenta MCP `create-pod` (leia antes o guia `runpod-mcp` via `read-guide`, se ainda não leu). Informe o preço/h devolvido; a RTX PRO 6000 custa US$ 2,49/h. Detalhes e armadilhas em [references/07-runpod.md](references/07-runpod.md).
+1. **Criar o pod:** `python S/make_pod.py [--qwen]` gera o JSON (`--qwen` só se o usuário escolheu a âncora feita pela IA). Passe-o para a ferramenta MCP `create-pod` (leia antes o guia `runpod-mcp` via `read-guide`, se ainda não leu). Informe o preço/h devolvido; a RTX PRO 6000 custa US$ 2,49/h. Detalhes e armadilhas em [references/07-runpod.md](references/07-runpod.md).
 2. **Esperar o pod:** polling de `https://<pod>-8188.proxy.runpod.net/system_stats` (com user-agent de curl), depois `python S/run_job.py JOB/job.json check <pod>`.
-3. **Primeiro segmento de cada shot, best-of-N:** `python S/run_job.py JOB/job.json best <pod> A1 11,22,33`. Gera um take por seed, roda `qa_take.py` (no venv: `H3_VPY`) e seleciona a maior nota. Shots independentes podem ir para a fila junto.
-4. **Conferir o vencedor** com som e com os números ([references/09-qa.md](references/09-qa.md)); trocar com `select <seg> <take>` se discordar.
-5. **Encadear o resto:** `python S/run_job.py JOB/job.json chain <pod> <shot> [--seeds 11,22]` (com `--seeds`, best-of-N em cada segmento). Segmento reprovado: `best`/`seg … --seed` e `select`; o `chain` seguinte regera só o que dependia dele.
-6. **Janela de boca ruim que nenhuma seed resolve** (pod com `--latentsync`): `run_job.py lipfix <pod> <seg> <t0> <t1>` gera um take `_lf` com só aquele trecho refeito pelo LatentSync 1.6; QA e `select` se melhorar ([09-qa.md](references/09-qa.md)).
-7. **Montar para QA:** `python S/assemble.py JOB/job.json JOB/final.mp4`. Saem também o `final_ref.mp4` e o QA completo contra ele.
-8. **Desligar:** `delete-pod`, depois `list-pods` e `list-network-volumes`. Avise que está zerado.
-9. **Final em resolução cheia (CPU):** `VPY S/composite.py JOB/job.json JOB/final_full.mp4 [--debug-mask]` ([17-composite.md](references/17-composite.md)).
+3. **Âncora pela IA (se escolhida):** `run_job.py anchor <pod> <shot> 11,22,33`, depois `VPY S/qa_anchor.py JOB/job.json <shot> --set`. Âncora do usuário já chega pronta da Fase A.
+4. **Primeiro segmento de cada shot, best-of-N:** `python S/run_job.py JOB/job.json best <pod> A1 11,22,33`. Gera um take por seed, roda `qa_take.py` (no venv: `H3_VPY`) e seleciona a maior nota. Shots independentes podem ir para a fila junto.
+5. **Conferir o vencedor** com som e com os números ([references/09-qa.md](references/09-qa.md)); trocar com `select <seg> <take>` se discordar.
+6. **Encadear o resto:** `python S/run_job.py JOB/job.json chain <pod> <shot> [--seeds 11,22]` (com `--seeds`, best-of-N em cada segmento). Segmento reprovado: `best`/`seg … --seed` e `select`; o `chain` seguinte regera só o que dependia dele.
+7. **Janela de boca ruim que nenhuma seed resolve** (pod com `--latentsync`): `run_job.py lipfix <pod> <seg> <t0> <t1>` gera um take `_lf` com só aquele trecho refeito pelo LatentSync 1.6; QA e `select` se melhorar ([09-qa.md](references/09-qa.md)).
+8. **Montar para QA:** `python S/assemble.py JOB/job.json JOB/final.mp4`. Saem também o `final_ref.mp4` e o QA completo contra ele.
+9. **Desligar:** `delete-pod`, depois `list-pods` e `list-network-volumes`. Avise que está zerado.
+10. **Final em resolução cheia (CPU):** `VPY S/composite.py JOB/job.json JOB/final_full.mp4 [--debug-mask]` ([17-composite.md](references/17-composite.md)).
 
 ### Fase C: entrega
 
@@ -69,7 +74,7 @@ Envie o `final_full.mp4` (e o `final.mp4` de canvas, se útil) e reporte **com n
 | Situação | Decisão |
 |---|---|
 | Close de selfie, fala | Sem âncora; `behavior` detalhado; 2–3 seeds no 1º segmento |
-| Plano médio ou aberto, personagem bem diferente | Testar âncora (`make_pod --qwen`, `run_job anchor` com 3–5 seeds, `qa_anchor.py --set` para escolher e colar de volta); usar só se a QA do vídeo melhorar |
+| Plano médio ou aberto, personagem bem diferente | Testar âncora: perguntar ao usuário se ele faz (Nano Banana/GPT Image, `anchor_kit.py`) ou se a IA faz (Qwen, `make_pod --qwen` + `run_job anchor`); escolher com `qa_anchor.py --set`; usar só se a QA do vídeo melhorar |
 | Pessoa entra ou sai pela borda no 1º frame do shot | Nunca usar âncora nesse shot |
 | Chapéu, cabelo armado, capa | `expansion_px` de 144–160; conferir com `qa_mask.py` |
 | Várias pessoas na cena | `sam_text` específico ("bald man in dark t-shirt"), `selection` (`largest`, `leftmost`, `rightmost`, `index`) |
@@ -123,7 +128,8 @@ Envie o `final_full.mp4` (e o `final.mp4` de canvas, se útil) e reporte **com n
 | `composite.py` | venv | **Final em resolução cheia**: personagem colado sobre o vídeo original com máscara suave e estável no tempo |
 | `make_guide.py` | venv | Clipes-guia (profundidade colorida e/ou face mesh no lugar da pessoa) para o A/B do `--guide` |
 | `qa_take.py` | venv | QA completa de um take com nota única (usada pelo `best`) |
-| `qa_anchor.py` | venv | Mede as variações de âncora (composição, escala do rosto, boca, identidade, pessoa extra), cola o personagem de volta no frame original e escolhe a melhor |
+| `anchor_kit.py` | qualquer | Pacote para o usuário fazer a âncora no Nano Banana / GPT Image: frame, personagem, prompt pronto e passo a passo |
+| `qa_anchor.py` | venv | Alinha ao frame original as âncoras do Qwen ou do usuário (outro tamanho/proporção), mede as variações de âncora (composição, escala do rosto, boca, identidade, pessoa extra), cola o personagem de volta no frame original e escolhe a melhor |
 | `qa_lipsync.py` | venv | Correlação da boca com a FONTE por segundo, atraso e amplitude |
 | `qa_syncnet.py` | venv + torch | Sincronia da boca com o ÁUDIO (SyncNet: LSE-C/LSE-D, offset, janelas) |
 | `qa_identity.py` | venv | Identidade ArcFace contra a referência e contra a pessoa original (vazamento); `dino` para personagem estilizado |

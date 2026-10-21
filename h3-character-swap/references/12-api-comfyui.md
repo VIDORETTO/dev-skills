@@ -54,7 +54,7 @@ Por dentro (`relay/passes.py`): `ref_image_0` = personagem, `ref_image_1` = ânc
 
 ## Nome dos takes e histórico
 
-`<seg>_s<seed>[_<guia>][_base][_h<4 hex>]`: `_base` = sem Turbo; `_hXXXX` = continuação, com os 4 primeiros hex do SHA-1 do take anterior usado. O `job.json` guarda em cada take `history_from`, `guide`, `turbo`, `anchor`, `extra` e, depois do `best`, o resumo `qa`. Takes do `lipfix` acrescentam `_lf<frame>`.
+`<seg>_s<seed>[_<guia>][_base][_h<4 hex>][_anc<4 hex>]`: `_base` = sem Turbo; `_hXXXX` = continuação, com os 4 primeiros hex do SHA-1 do take anterior usado; `_ancXXXX` = gerado com âncora (de 1º frame ou no meio do shot), marca do arquivo da âncora. O `job.json` guarda em cada take `history_from`, `guide`, `turbo`, `anchor`, `extra` e, depois do `best`, o resumo `qa`. Takes do `lipfix` acrescentam `_lf<frame>`.
 
 ## ComfyUI fora do RunPod
 

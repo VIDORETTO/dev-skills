@@ -61,6 +61,38 @@ Ou grave `"anchor": "out/anchor_A3_s22.png"` no segmento A3 do `job.json` para o
 - **O slot é um só:** se o segmento tem âncora no meio, a `character.extra_image` não entra nele.
 - **Decida por A/B com a QA** (identidade ArcFace e lip sync): no caso Sherlock, a âncora de 1º frame **piorou** o lip sync em close.
 
+<a id="quem-faz-a-âncora"></a>
+
+## Quem faz a âncora: o usuário ou a IA
+
+A escolha é do usuário e acontece **na Fase A, antes de criar o pod** (a opção do Qwen muda o pod: `--qwen`).
+
+**Pergunta modelo** (adapte aos shots do vídeo):
+
+> Recomendo âncora de 1º frame no shot A (plano médio, personagem bem diferente). No shot C não: a pessoa entra pela borda. Como prefere?
+> 1. **Você faz** no Nano Banana (Gemini) ou no GPT Image (ChatGPT). Eu preparo o frame, a imagem do personagem e o prompt, e explico o passo a passo. Sem custo de GPU; os frames vão para o Google/OpenAI.
+> 2. **Eu faço** com o Qwen-Image-Edit no pod: automático, ~85 s por variação (~US$ 0,06 cada), mas o pod baixa ~31 GB a mais.
+> 3. **Sem âncora**, o padrão validado.
+
+| | Usuário (Nano Banana / GPT Image) | IA (Qwen-Image-Edit 2511 no pod) |
+|---|---|---|
+| Custo | Nenhum de GPU (plano do editor) | ~US$ 0,06 por variação + pod maior |
+| Trabalho do usuário | Gerar 2–4 variações e devolver | Nenhum |
+| Privacidade | Frames enviados ao Google/OpenAI | Fica no pod |
+| Formato | Pode voltar em outra proporção (GPT Image: 2:3); a skill alinha | Mesmo tamanho do canvas |
+| Pessoas reais | O editor pode recusar | Sem filtro |
+| Histórico nesta skill | Não testado com gerações reais | 1 de 3 seeds usável no caso Sherlock |
+
+### Se o usuário fizer
+
+1. `python S/anchor_kit.py JOB/job.json A` → `JOB/anchor_kit/` com `A_frame.png` (o frame no recorte do vídeo final, na resolução da fonte), `personagem.*`, `PROMPT_A.txt` e `COMO_FAZER.md`.
+2. Mostre ao usuário o `COMO_FAZER.md` e o prompt, em resumo: anexar **o frame e depois o personagem**, colar o prompt sem mudar, gerar 2–4 variações, descartar as que reenquadraram, mudaram a boca ou cortaram a pessoa, baixar em PNG na resolução máxima e **não recortar**.
+3. **Espere as imagens.** Elas voltam em `JOB/anchors_user/A_v1.png`, `A_v2.png`… ou anexadas no chat (salve-as nessa pasta com esses nomes).
+4. `VPY S/qa_anchor.py JOB/job.json A --set`: alinha cada imagem ao frame original (ORB no fundo; corrige o 2:3 do GPT Image e reenquadres leves), mede, cola de volta e grava a melhor. Mostre a tabela e a imagem colada ao usuário.
+5. Se nenhuma passar: o usuário gera outras com o mesmo prompt, ou o shot segue sem âncora.
+
+O prompt pede ao editor bordas em vez de recorte quando ele não conseguir manter a proporção. Se mesmo assim cortar parte da pessoa, o `qa_anchor` reprova (> 5% da pessoa fora): naquela faixa ficaria a pessoa original.
+
 ## Escolha automática das variações: `qa_anchor.py`
 
 ```bash

@@ -7,7 +7,7 @@ Comandos:
   python run_job.py JOB.json anchor <pod> <shot|seg> 11,22,33  # variações de âncora (Qwen-Image-Edit) -> out/anchor_<id>_s<seed>.png
                                                                #   shot = 1º frame do shot; seg = 1º frame do segmento (âncora no meio do shot)
   python run_job.py JOB.json seg    <pod> <seg> [--seed N] [--anchor f.png] [--expansion PX] [--guide MODO] [--no-turbo]
-                                                               # 1 take -> out/<seg>_s<seed>[_guia][_base][_h<origem>].mp4
+                                                               # 1 take -> out/<seg>_s<seed>[_guia][_base][_h<origem>][_anc<âncora>].mp4
                                                                #   (+ histórico salvo no pod; _hXXXX = continuação, marca do take anterior usado)
   python run_job.py JOB.json best   <pod> <seg> 11,22,33 [mesmas opções do seg]
                                                                # best-of-N: gera 1 take por seed, roda a QA (qa_take.py) e escolhe o melhor
@@ -33,7 +33,7 @@ except Exception:
     pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from h3common import (load_job, save_job, find_segment, take_record, history_ok, vpy, cover_crop_filter, run,
+from h3common import (load_job, save_job, find_segment, take_record, history_ok, vpy, ensure_frame, run,
                       HISTORY_FRAMES, FPS)
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -222,21 +222,6 @@ def local_path(p):
     return p if os.path.isabs(p) else os.path.join(D, p)
 
 
-def seg_frame(seg_or_shot_id):
-    """1º frame do shot ou do segmento, no canvas exato (gera na hora se o prepare antigo não extraiu)."""
-    path = os.path.join(D, "frames", f"{seg_or_shot_id}_0.png")
-    if not os.path.exists(path):
-        try:
-            start = find_segment(job, seg_or_shot_id)[2]["start"]
-        except SystemExit:
-            start = next(s for s in job["shots"] if s["id"] == seg_or_shot_id)["start"]
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        run(["ffmpeg", "-v", "error", "-y", "-i", os.path.join(D, job["source"]["sdr"]), "-vf",
-             f"select='eq(n\\,{start})',{cover_crop_filter(job['canvas']['width'], job['canvas']['height'])}",
-             "-fps_mode", "passthrough", "-frames:v", "1", path])
-    return path
-
-
 def invalidate_after(shot, idx):
     """O histórico mudou: segmentos seguintes cujo take escolhido veio de outro histórico perdem a seleção."""
     for j in range(idx + 1, len(shot["segments"])):
@@ -271,6 +256,9 @@ def run_segment(pod, seg_id, seed=None, anchor=None, expansion=None, guide=None,
         anchor = anchor or (seg.get("anchor") if s.get("use_anchor") else None)
     take = f"{seg_id}_s{seed}{tags}"
     kind, extra = extra_slot(seg, idx, mid_anchor)
+    if anchor or kind == "mid_anchor":                      # A/B com e sem âncora na mesma seed não pode sobrescrever
+        a_file = anchor or extra
+        take += "_anc" + hashlib.sha1(os.path.basename(a_file).encode()).hexdigest()[:4]
     prompt = build_prompt(seg, idx, bool(anchor), kind, guide)
     print("PROMPT:", prompt, "\n", flush=True)
     char = pod.upload(job["character"]["image"], "character" + os.path.splitext(job["character"]["image"])[1])
@@ -417,7 +405,7 @@ elif CMD == "check":
 elif CMD == "anchor":
     pod, target, seeds = Pod(sys.argv[3]), sys.argv[4], [int(s) for s in sys.argv[5].split(",")]
     char = pod.upload(job["character"]["image"])
-    frame = pod.upload(seg_frame(target), f"frame_{target}.png")
+    frame = pod.upload(ensure_frame(job, target), f"frame_{target}.png")
     pids = [(s, pod.submit(anchor_graph(frame, char, s))) for s in seeds]
     for s, pid in pids:
         outs = pod.wait(pid, "15")
