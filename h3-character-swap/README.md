@@ -147,23 +147,39 @@ A tabela "Decisões rápidas" do [`SKILL.md`](./SKILL.md) cobre os casos comuns.
 
 ## 🔀 LoRA alternativo: Alissonerdx v1.1
 
-A skill usa o **LoRA Character Swap v1.5 do akatz**, com a ferramenta oficial dele. Existe outro LoRA de character swap para o mesmo modelo, o **Alissonerdx Character Swap v1.1** (lançado em 13/10/2026, em [`huggingface.co/Alissonerdx/Minimax-H3-ComfyUI`](https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI), arquivo `loras/minimax_h3_character_swap_v1.1_ref2va_fro.safetensors`). Ele é uma **alternativa** para quando o do akatz não estiver bom no seu vídeo, não uma substituição automática.
+A skill usa o **LoRA Character Swap v1.5 do akatz**, com a ferramenta oficial dele. Existe outro LoRA de character swap para o mesmo modelo, o **Alissonerdx Character Swap v1.1**, focado em deixar o personagem mais parecido com a referência. Ele é uma **alternativa** para quando o do akatz não estiver bom no seu vídeo, não uma substituição automática.
+
+**Links:**
+- Repositório (model card, LoRAs, docs, workflows): [huggingface.co/Alissonerdx/Minimax-H3-ComfyUI](https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI)
+- Arquivo do LoRA: [`loras/minimax_h3_character_swap_v1.1_ref2va_fro.safetensors`](https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI/blob/main/loras/minimax_h3_character_swap_v1.1_ref2va_fro.safetensors)
+- Guia oficial: [`docs/character-swap.md`](https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI/blob/main/docs/character-swap.md) · workflow: [`minimax_h3_character_swap_workflow.json`](https://huggingface.co/Alissonerdx/Minimax-H3-ComfyUI/blob/main/workflows/minimax_h3_character_swap_workflow.json)
+- Lançamento do v1.1 (18/10/2026): [comfyui-wiki](https://comfyui-wiki.com/en/news/2026-10-18-h3-character-swap-v1-1) · [ArtRealm](https://artrealmai.com/article/minimax-h3-character-swap-lora-v1-1-comfyui)
 
 | | akatz v1.5 (padrão da skill) | Alissonerdx v1.1 (alternativa) |
 |---|---|---|
 | Como o vídeo-fonte entra | Como referência (`<Video 1>`) | Como guia alinhado à saída, posição por posição (`MiniMaxH3AddGuide`) |
-| Foco declarado | Preservar cena e fala | Semelhança com a referência (rosto, cabelo, corpo, roupa) |
+| Foco declarado | Preservar cena, fala e cortes | Semelhança com a referência (rosto, cabelo, corpo, roupa) |
+| Prompt | Livre, com diálogo `<d>` e `behavior` com tempos | Fixo, uma linha com o gatilho `body_swap:` e a lista de atributos |
 | Máscara / fundo | SAM 3.1; fora da máscara o fundo é preservado | BiRefNet; não preserva o fundo do mesmo jeito (o `composite.py` devolve o fundo original de qualquer forma) |
-| Prompt | Livre, com diálogo `<d>` e `behavior` com tempos | Modelo fixo de uma linha começando com `body_swap:` |
 | Turbo | lightx2v 8 steps | DMD 8 steps |
-| Licença do LoRA | Licença do MiniMax H3 | Própria: uso comercial livre, crédito para empresas acima de US$ 1 M, proibido oferecer como API/SaaS (a licença do H3 base continua valendo) |
+| Licença do LoRA | Licença do MiniMax H3 | Própria: uso comercial livre, **proibido oferecer como API/SaaS** (a licença do H3 base continua valendo) |
 | Validação nesta skill | Caso real: lip sync 0,71–0,82 | Nenhuma ainda |
 
-**Quando considerar:** depois de 3+ seeds e dos ajustes da lista anterior, a identidade continua fraca (o `qa_identity.py` mostra `id_ref` baixo ou margem pequena contra a pessoa original) ou o personagem sai pouco parecido com a referência.
+### Quando compensa trocar
 
-**Como testar:** A/B no primeiro segmento, com a mesma seed, medindo os dois lados com o `qa_take.py`; adote só se ganhar em identidade **sem** perder lip sync. Os dois LoRAs não devem ser empilhados.
+**Compensa testar** quando o problema é **semelhança**, não boca nem fundo: depois de 3+ seeds e dos ajustes da lista anterior, o `qa_identity.py` mostra `id_ref` baixo ou margem pequena contra a pessoa original, ou o figurino e o cabelo saem diferentes da referência. Vale mais em plano médio ou aberto, com uma pessoa só e sem cortes dentro do segmento.
 
-> **Ainda não integrado aos scripts.** O v1.1 usa outro grafo e outro formato de prompt, então trocar só o arquivo do LoRA no `job.json` não funciona. O grafo precisa ser montado a partir da documentação oficial dele (`docs/character-swap.md` no repositório do Hugging Face). Detalhes e o plano de teste estão em [`references/15-fronteira.md`](./references/15-fronteira.md).
+**Provavelmente não compensa** quando o problema é **lip sync** (o v1.1 não recebe o diálogo no prompt; a receita do akatz tem números reais), quando há várias pessoas na cena, cortes de câmera dentro do segmento, rostos muito pequenos ou oclusão forte, ou quando a troca vai ser oferecida como API/SaaS.
+
+### O que dizem os relatos
+
+- **O autor** chama o modelo de experimental, "not a guaranteed identity-transfer system". Segundo ele, a semelhança afrouxa com rostos pequenos, oclusão, movimento rápido, ângulos difíceis, mudanças de luz e clipes longos. Ele sugere combinar com o Head Swap LoRA do mesmo repositório para melhorar o lip sync em alguns clipes, e disse que pretende fazer uma versão melhor junto com o akatz.
+- **A v1.1** (80 MB, extração SVD) respondeu à reclamação principal da v1.0 (620 MB): o personagem não ficava parecido o bastante com a referência.
+- **Nenhuma comparação independente com o akatz v1.5** foi encontrada, nem relato de usuário específico sobre a v1.1. Por isso a decisão é por A/B com a QA da skill.
+
+**Como testar:** A/B no primeiro segmento, com 2–3 seeds dos dois lados, medindo com o `qa_take.py`; adote só se ganhar em identidade **sem** perder lip sync. Os dois LoRAs não devem ser empilhados.
+
+> **Ainda não integrado aos scripts.** O v1.1 usa outro grafo e outro formato de prompt, então trocar só o arquivo do LoRA no `job.json` não funciona. O grafo precisa ser montado a partir da documentação oficial dele. Todos os detalhes, os relatos e o passo a passo do teste estão em [`references/19-lora-alissonerdx.md`](./references/19-lora-alissonerdx.md).
 
 ## 🛠️ Solução de problemas
 
@@ -205,7 +221,7 @@ h3-character-swap/
 ├── SKILL.md           # entrada da skill: regras de ouro, fluxo, decisões rápidas
 ├── README.md          # este arquivo
 ├── assets/            # grafo oficial (API JSON), prompt estruturado do akatz, transcrição de exemplo
-├── references/        # 00–18: análise, pipeline, prompt, máscara, âncora, QA, falhas, caso real, fronteira…
+├── references/        # 00–19: análise, pipeline, prompt, máscara, âncora, QA, falhas, caso real, fronteira…
 └── scripts/
     ├── prepare.py         # análise prévia local
     ├── make_pod.py        # JSON do create-pod com o boot pronto
