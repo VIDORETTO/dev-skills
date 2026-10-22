@@ -52,6 +52,8 @@ Os dois usados nos testes reais de 22/10/2026 (ambos aprovados):
 
 > the person is seated on the white bench in front of the grey curtain, next to the plant and the striped cushion, legs apart, fingers interlocked in front of the chest, eyebrows slightly furrowed, lips closed, looking straight at the camera, soft indoor daylight
 
+Os prompts completos desses dois testes, com as imagens antes e depois, estão em [`assets/exemplos-ancora/`](../assets/exemplos-ancora/).
+
 Inclua o que costuma mudar sem querer: **pernas** (no teste 1 elas abriram porque o prompt não dizia "knees together"), mãos, boca e objetos que a pessoa toca.
 
 ## Trecho de `job.json` (formato)

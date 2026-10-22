@@ -136,6 +136,17 @@ Primeiro teste com edições reais feitas pelo usuário no Nano Banana / GPT Ima
 | 1: plano médio no jardim, mãos no colo | 928x1694, mesma proporção do frame | escala exata, deslocamento 0, 775 pontos | 0,83 / 0,03 | Aprovada. Ressalva: pernas abertas (no original, joelhos juntos sob o casaco) |
 | 2: sentado no banco, dedos entrelaçados | 941x1672 (9:16, mais largo que o frame de 0,548) | corrigido, 267 pontos (cortina repetitiva, ainda suficiente) | 0,68 / 0,00 | Aprovada |
 
+**Arquivos do teste** (em [`assets/exemplos-ancora/`](../assets/exemplos-ancora/)): os frames vêm dos vídeos de demonstração do [LatentSync](https://github.com/bytedance/LatentSync) (`assets/demo1_video.mp4` e `demo3_video.mp4`, repositório sob Apache-2.0); as edições foram feitas pelo usuário. Use-os como referência do que é uma âncora aprovada e de como a folha de revisão deve ficar.
+
+| | Frame original | Edição devolvida | Prompt usado | Folha de revisão |
+|---|---|---|---|---|
+| Teste 1 | [`teste1_frame.jpg`](../assets/exemplos-ancora/teste1_frame.jpg) | [`teste1_editada.webp`](../assets/exemplos-ancora/teste1_editada.webp) | [`teste1_prompt.txt`](../assets/exemplos-ancora/teste1_prompt.txt) | [`teste1_revisao.jpg`](../assets/exemplos-ancora/teste1_revisao.jpg) |
+| Teste 2 | [`teste2_frame.jpg`](../assets/exemplos-ancora/teste2_frame.jpg) | [`teste2_editada.webp`](../assets/exemplos-ancora/teste2_editada.webp) | [`teste2_prompt.txt`](../assets/exemplos-ancora/teste2_prompt.txt) | [`teste2_revisao.jpg`](../assets/exemplos-ancora/teste2_revisao.jpg) |
+
+![Folha de revisão do teste 1: frame original, edição alinhada, versão colada e recortes do rosto e da boca](../assets/exemplos-ancora/teste1_revisao.jpg)
+
+![Folha de revisão do teste 2: frame original, edição alinhada, versão colada e recortes do rosto e da boca](../assets/exemplos-ancora/teste2_revisao.jpg)
+
 **O que se aprendeu:**
 - **Os editores externos mantiveram a composição** nas duas edições, ao contrário do Qwen no caso Sherlock (1 de 3 seeds usável). São só duas amostras, em vídeos de demonstração; repita a medição com o vídeo real.
 - **O prompt descrevendo o frame** (pose, mãos, boca, expressão, objetos e luz) foi o que se usou e funcionou. Agora o `anchor_kit` inclui o `anchor_notes` do job no prompt.

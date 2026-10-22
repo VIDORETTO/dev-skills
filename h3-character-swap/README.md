@@ -223,7 +223,8 @@ Modelos, sampler, janelas e memória: [`references/06-parametros.md`](./referenc
 h3-character-swap/
 ├── SKILL.md           # entrada da skill: regras de ouro, fluxo, decisões rápidas
 ├── README.md          # este arquivo
-├── assets/            # grafo oficial (API JSON), prompt estruturado do akatz, transcrição de exemplo
+├── assets/            # grafo oficial (API JSON), prompt estruturado do akatz, transcrição de exemplo,
+│                      #   exemplos-ancora/ (testes reais de âncora: frame, edição, prompt e folha de revisão)
 ├── references/        # 00–19: análise, pipeline, prompt, máscara, âncora, QA, falhas, caso real, fronteira…
 └── scripts/
     ├── prepare.py         # análise prévia local

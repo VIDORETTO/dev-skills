@@ -142,7 +142,7 @@ Envie o `final_full.mp4` (e o `final.mp4` de canvas, se útil) e reporte **com n
 | `qa_color.py` | venv | Cor e brilho **do fundo** contra a fonte |
 | `h3common.py` | — | Canvas idêntico ao da ferramenta, janelas `17n+5`, mapeamento canvas→fonte, histórico dos takes, ffprobe |
 
-Assets: `assets/h3_character_swap.api.json` (grafo oficial), `assets/prompt_relay_estruturado_akatz.txt` (prompt estruturado do autor, para o fluxo h3-relay) e `assets/transcript_exemplo.json`.
+Assets: `assets/h3_character_swap.api.json` (grafo oficial), `assets/prompt_relay_estruturado_akatz.txt` (prompt estruturado do autor, para o fluxo h3-relay), `assets/transcript_exemplo.json` e `assets/exemplos-ancora/` (dois testes reais de âncora feita pelo usuário: frame, edição, prompt e folha de revisão aprovados; ver [05-ancora.md](references/05-ancora.md)).
 
 ## Limites honestos (diga ao usuário quando aplicável)
 
