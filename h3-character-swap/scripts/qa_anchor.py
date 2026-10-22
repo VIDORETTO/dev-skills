@@ -28,7 +28,9 @@ Medidas por variação (contra o frame da fonte no canvas, frames/<id>_0.png):
   id_ref/id_src identidade ArcFace contra a referência e contra a pessoa original (vazamento)
   pessoas      rostos detectados na âncora x na fonte (pessoa inventada)
   nitidez      nitidez do rosto na âncora / na fonte (variância do Laplaciano; < 0,5 = borrado ou plastificado)
-Nota = id_ref − id_src + iou − 2·|escala−1| − deslocamento − 3·boca_dif − 1·pessoa_extra (ordena; não é absoluta).
+Nota = id_ref − id_src + iou − 2·|escala−1| − deslocamento − 1,6·boca_dif − 1·pessoa_extra (ordena; não é absoluta).
+MAR medida em pixels; o rosto é achado pelo FaceLandmarker do MediaPipe e, se ele falhar (rosto pequeno no quadro),
+num recorte ampliado em volta do rosto que o InsightFace detectou.
 Reprova (✗) se escala fora de 0,8–1,25, deslocamento > 0,35, iou < 0,5, pessoa extra, rosto com < 35% da nitidez da
 fonte, edição que cortou > 5% da pessoa
 (bordas recortadas pelo editor: ali ficaria a pessoa original) ou rosto ainda da pessoa original
@@ -57,12 +59,31 @@ def face_geom(img):
     if _FL is None:
         _FL = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=face_model()), running_mode=vision.RunningMode.IMAGE, num_faces=1))
-    r = _FL.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
-    if not r.face_landmarks:
-        return None
-    p, h, w = r.face_landmarks[0], img.shape[0], img.shape[1]
-    xs, ys = np.array([q.x * w for q in p]), np.array([q.y * h for q in p])
-    v = np.hypot(p[13].x - p[14].x, p[13].y - p[14].y); hz = np.hypot(p[78].x - p[308].x, p[78].y - p[308].y)
+    def detect(im):
+        r = _FL.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))))
+        return r.face_landmarks[0] if r.face_landmarks else None
+    h, w = img.shape[:2]
+    p, ox, oy, k = detect(img), 0, 0, 1.0
+    if p is None:
+        # rosto pequeno no quadro: o FaceLandmarker falha na imagem inteira. Recorta em volta do rosto que o detector
+        # do InsightFace achou, amplia para ~512 px e tenta de novo (coordenadas voltam para o quadro inteiro).
+        import qa_identity
+        fs = qa_identity.faces(img)
+        if not fs:
+            return None
+        x0, y0, x1, y1 = fs[0].bbox
+        m = 0.6 * max(x1 - x0, y1 - y0)
+        ox, oy = int(max(0, x0 - m)), int(max(0, y0 - m))
+        crop = img[oy:int(min(h, y1 + m)), ox:int(min(w, x1 + m))]
+        k = 512 / max(crop.shape[:2])
+        p = detect(cv2.resize(crop, None, fx=k, fy=k, interpolation=cv2.INTER_CUBIC))
+        if p is None:
+            return None
+        cw, ch = crop.shape[1] * k, crop.shape[0] * k
+        xs, ys = np.array([ox + q.x * cw / k for q in p]), np.array([oy + q.y * ch / k for q in p])
+    else:
+        xs, ys = np.array([q.x * w for q in p]), np.array([q.y * h for q in p])
+    v = np.hypot(xs[13] - xs[14], ys[13] - ys[14]); hz = np.hypot(xs[78] - xs[308], ys[78] - ys[308])
     return (xs.mean(), ys.mean(), xs.max() - xs.min(), v / hz if hz else 0.0)
 
 
@@ -200,7 +221,7 @@ def hints_for(r):
         elif p == "pessoa extra": keys.append("extra")
         elif p == "sem rosto": keys.append("sem_rosto")
         elif p.startswith("rosto borrado"): keys.append("nitidez")
-    if r.get("boca_dif", 0) > 0.06:
+    if r.get("boca_dif", 0) > 0.10:   # MAR em pixels; abaixo disso o estado da boca (aberta/fechada) é o mesmo
         keys.append("boca_aberta" if r.get("boca_mais_aberta_na_fonte") else "boca_fechada")
     if r.get("nitidez") is not None and r["nitidez"] < 0.6: keys.append("nitidez")
     if r.get("alinhamento", {}).get("escala", 1) > 1.05: keys.append("resolucao")
@@ -247,7 +268,7 @@ def score(r):
     if r.get("id_ref") is not None:
         s += r["id_ref"] - (r.get("id_src") or 0)
     if "rosto_escala" in r:
-        s -= 2 * abs(r["rosto_escala"] - 1) + r["rosto_desloc"] + 3 * r["boca_dif"]
+        s -= 2 * abs(r["rosto_escala"] - 1) + r["rosto_desloc"] + 1.6 * r["boca_dif"]   # MAR em pixels (ver face_geom)
     if r.get("pessoas_colada", r["pessoas"])[0] > r["pessoas"][1]:
         s -= 1
     return round(s, 4)
