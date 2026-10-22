@@ -24,6 +24,7 @@ Consenso da comunidade: **nenhuma** ferramenta, aberta ou comercial, garante lip
 | Guia de profundidade/face mesh (Genjutsu) | `make_guide.py` + `--guide` ([16](16-guia-profundidade.md)) | **Experimental**: sem geração real |
 | Reparo de boca por janela (LatentSync 1.6) | `make_pod --latentsync` + `run_job lipfix` | **Experimental**: sem geração real |
 | Âncora no meio do shot / referência extra | `seg --anchor` em continuação, `character.extra_image` | **Experimental**: sem geração real |
+| Âncora feita pelo usuário (Nano Banana / GPT Image) + `qa_anchor` | `anchor_kit.py`, `qa_anchor.py` ([05](05-ancora.md)) | 2 edições reais aprovadas (22/10); ainda sem geração de vídeo com elas |
 | Base sem Turbo | `seg|best --no-turbo` | Já existia como `settings.turbo`; agora por take |
 
 ## Alavancas ainda não testadas (por ordem de custo/benefício)

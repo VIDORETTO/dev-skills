@@ -16,7 +16,7 @@ V="$LOCALAPPDATA/Temp/cswap-venv/Scripts/python.exe"
 "$V" -m pip install "rembg[cpu]" opencv-python-headless mediapipe scipy soundfile
 "$V" -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
 "$V" -m pip install demucs faster-whisper
-"$V" -m pip install insightface onnxruntime python_speech_features   # qa_identity, qa_syncnet
+"$V" -m pip install insightface onnxruntime python_speech_features   # qa_identity, qa_syncnet, qa_anchor e o resgate de rosto pequeno do qa_lipsync
 "$V" -m pip install transformers timm                                 # make_guide (Depth Anything V2 / MiDaS), opcional
 ```
 

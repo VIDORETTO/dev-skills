@@ -40,6 +40,20 @@ people or camera cuts. Adapt lighting to the lighting of <Video 1>. Retain the s
 
 A continuação acrescenta, depois da descrição: "<Picture 2> is the generated boundary from the preceding segment. Continue its motion and appearance."
 
+<a id="anchor_notes"></a>
+
+## `anchor_notes`: descrição do frame para o prompt da âncora
+
+Escreva em inglês, olhando `frames/<id>_0.png`, e grave no shot (ou no segmento) do `job.json`. Descreva a pessoa ORIGINAL do frame: o editor vai pôr o personagem exatamente ali. Ordem: onde está → pose → mãos → pernas → cabeça e olhar → expressão → boca → objetos da cena → luz.
+
+Os dois usados nos testes reais de 22/10/2026 (ambos aprovados):
+
+> the person is seated in the wicker chair in front of the garden gazebo, hands clasped on the lap, knees together, head slightly tilted, looking straight at the camera, lips slightly parted in a soft smile, soft overcast daylight
+
+> the person is seated on the white bench in front of the grey curtain, next to the plant and the striped cushion, legs apart, fingers interlocked in front of the chest, eyebrows slightly furrowed, lips closed, looking straight at the camera, soft indoor daylight
+
+Inclua o que costuma mudar sem querer: **pernas** (no teste 1 elas abriram porque o prompt não dizia "knees together"), mãos, boca e objetos que a pessoa toca.
+
 ## Trecho de `job.json` (formato)
 
 ```json

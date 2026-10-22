@@ -21,7 +21,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from h3common import load_job, ensure_frame
 
 
-def brief(desc):
+def brief(desc, notes=None):
+    """Prompt do editor. notes = descrição DESTE frame escrita pelo agente olhando a imagem (job.json:
+    anchor_notes no shot/segmento): onde a pessoa está, pose, mãos, pernas, cabeça, olhar, expressão, estado da boca,
+    objetos da cena e tipo de luz. Foi o que funcionou nos primeiros testes reais (22/10/2026)."""
+    frame = (f"In this frame specifically: {notes.strip().rstrip('.')}. The character must reproduce exactly this "
+             "placement, pose, hands, expression and mouth.\n\n") if notes else ""
     return (
         "Edit Image 1. Image 2 shows the character's identity only.\n\n"
         f"Replace ONLY the main person in Image 1 with the character from Image 2: {desc}.\n\n"
@@ -32,7 +37,7 @@ def brief(desc):
         "The character must take the exact place of the original person: same position and size in the frame, same "
         "head size and tilt, same face angle and gaze, same body pose and hand positions, and the same mouth opening "
         "and lip shape as in Image 1 (if the mouth is slightly open mid-word, keep it slightly open). Anything cut by "
-        "the frame edge stays cut the same way.\n\n"
+        "the frame edge stays cut the same way.\n\n" + frame +
         "Keep the character's face, hair and full costume from Image 2, but lit by the light of Image 1 (not studio "
         "light). Do not copy the pose, background or framing of Image 2.\n\n"
         "Output: one photorealistic image that looks like a real frame of the same video."
@@ -74,6 +79,14 @@ cortada), confere visualmente costura, mãos, restos da pessoa original, figurin
 sobre o frame original para o fundo ficar idêntico e diz qual variação aprovou. Se nenhuma passar, ela explica o
 motivo e te dá a frase exata para pedir a correção no mesmo chat do editor; ou vocês seguem sem âncora.
 
+## A imagem do personagem (referência) precisa ser boa
+
+Ela define a identidade. Uma referência ruim gera uma âncora ruim, por melhor que seja o editor:
+- nítida, com o rosto grande (ideal 1000 px ou mais de rosto; recorte pequeno deixa o rosto "plastificado");
+- o figurino inteiro visível (chapéu, roupa e, se aparecem no frame, sapatos);
+- luz neutra, um personagem só, sem texto nem marca d'água por cima;
+- folha com várias vistas do personagem também serve (use a imagem inteira, não um recorte pequeno).
+
 ## Avisos
 
 - Você vai enviar frames do seu vídeo e a imagem do personagem para o Google ou a OpenAI. Se o vídeo for privado,
@@ -81,6 +94,16 @@ motivo e te dá a frase exata para pedir a correção no mesmo chat do editor; o
 - Esses editores podem recusar edições com fotos de pessoas reais. Se recusarem, a outra opção é o Qwen no pod.
 - Shot em que a pessoa entra pela borda do quadro no primeiro frame: **não faça âncora** para ele.
 """
+
+
+def notes_for(job, item_id):
+    for shot in job["shots"]:
+        if shot["id"] == item_id:
+            return shot.get("anchor_notes")
+        for seg in shot.get("segments", []):
+            if seg["id"] == item_id:
+                return seg.get("anchor_notes") or (shot.get("anchor_notes") if seg is shot["segments"][0] else None)
+    return None
 
 
 def main():
@@ -103,7 +126,12 @@ def main():
         ensure_frame(job, item)                               # frame no canvas (referência do qa_anchor)
         files.append(ensure_frame(job, item, full_res=True))  # frame para o editor externo
         p = os.path.join(kit, f"PROMPT_{item}.txt")
-        open(p, "w", encoding="utf-8").write(brief(desc) + "\n"); files.append(p)
+        notes = notes_for(job, item)
+        if not notes:
+            print(f"AVISO: {item} sem anchor_notes no job.json. Abra o frame e descreva em inglês a pose, as mãos, as "
+                  "pernas, a cabeça, o olhar, a expressão, o estado da boca, os objetos da cena e a luz: o prompt "
+                  "específico do frame funcionou melhor que o genérico.", flush=True)
+        open(p, "w", encoding="utf-8").write(brief(desc, notes) + "\n"); files.append(p)
     listing = "\n".join(f"- `{os.path.basename(f)}`" for f in files)
     open(os.path.join(kit, "COMO_FAZER.md"), "w", encoding="utf-8").write(
         HOWTO.format(files=listing, back=os.path.relpath(back, D) + "/"))
@@ -116,7 +144,7 @@ def main():
     for item in sys.argv[2:]:
         lines += ["", f"## Shot/segmento {item}", "",
                   f"Anexe no editor, nesta ordem: 1) `{item}_frame.png`  2) `personagem` "
-                  "(e `personagem_extra`, se houver). Cole este prompt sem mudar nada:", "", "```text", brief(desc), "```",
+                  "(e `personagem_extra`, se houver). Cole este prompt sem mudar nada:", "", "```text", brief(desc, notes_for(job, item)), "```",
                   "", f"Devolva 2–4 variações como `{item}_v1.png`, `{item}_v2.png`… (PNG, resolução máxima, sem recortar)."]
     lines += ["", f"Pasta de retorno: {os.path.abspath(back)}",
               f"Depois do retorno: VPY S/qa_anchor.py {sys.argv[1]} <id> --set  (e abrir a folha de revisão que ele gera)"]

@@ -55,18 +55,17 @@ def ensure_frame(job, item_id, full_res=False):
     de imagem externos trabalharem com mais pixels). Extrai na hora se não existir."""
     D, W, H = job["_dir"], job["canvas"]["width"], job["canvas"]["height"]
     src = os.path.join(D, job["source"]["sdr"])
+    path = os.path.join(D, "anchor_kit", f"{item_id}_frame.png") if full_res else os.path.join(D, "frames", f"{item_id}_0.png")
+    if os.path.exists(path):
+        return path
     if full_res:
         info = video_info(src)
         s, _, _ = plate_region(info["width"], info["height"], W, H)
         W, H = int(round(W / s / 2) * 2), int(round(H / s / 2) * 2)
-        path = os.path.join(D, "anchor_kit", f"{item_id}_frame.png")
-    else:
-        path = os.path.join(D, "frames", f"{item_id}_0.png")
-    if not os.path.exists(path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf",
-             f"select='eq(n\\,{item_start(job, item_id)})',{cover_crop_filter(W, H)}",
-             "-fps_mode", "passthrough", "-frames:v", "1", path])
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf",
+         f"select='eq(n\\,{item_start(job, item_id)})',{cover_crop_filter(W, H)}",
+         "-fps_mode", "passthrough", "-frames:v", "1", path])
     return path
 
 

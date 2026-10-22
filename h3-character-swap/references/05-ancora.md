@@ -127,6 +127,26 @@ O prompt pede ao editor bordas em vez de recorte quando ele não conseguir mante
 
 A âncora gerada pela IA com o Qwen passa pela **mesma revisão** (números + folha `out/review_<shot>.jpg`).
 
+## Resultados reais com editores externos (22/10/2026)
+
+Primeiro teste com edições reais feitas pelo usuário no Nano Banana / GPT Image, sobre o 1º frame de dois vídeos de demonstração (LatentSync), com a pessoa de um vídeo como referência para o outro e prompts **específicos de cada frame** (pose, mãos, boca, objetos e luz descritos):
+
+| Teste | Retorno do editor | Alinhamento | Identidade (ref / fonte) | Veredito |
+|---|---|---|---|---|
+| 1: plano médio no jardim, mãos no colo | 928x1694, mesma proporção do frame | escala exata, deslocamento 0, 775 pontos | 0,83 / 0,03 | Aprovada. Ressalva: pernas abertas (no original, joelhos juntos sob o casaco) |
+| 2: sentado no banco, dedos entrelaçados | 941x1672 (9:16, mais largo que o frame de 0,548) | corrigido, 267 pontos (cortina repetitiva, ainda suficiente) | 0,68 / 0,00 | Aprovada |
+
+**O que se aprendeu:**
+- **Os editores externos mantiveram a composição** nas duas edições, ao contrário do Qwen no caso Sherlock (1 de 3 seeds usável). São só duas amostras, em vídeos de demonstração; repita a medição com o vídeo real.
+- **O prompt descrevendo o frame** (pose, mãos, boca, expressão, objetos e luz) foi o que se usou e funcionou. Agora o `anchor_kit` inclui o `anchor_notes` do job no prompt.
+- **Mãos difíceis (dedos entrelaçados) saíram corretas** nas duas edições.
+- **A pose das pernas pode mudar** quando o figurino muda muito (casaco longo → bermuda): confira as pernas na folha de revisão.
+- **Dois bugs da QA apareceram e foram corrigidos:** o MediaPipe não acha rostos pequenos (~135 px) no quadro inteiro e a edição era reprovada como "sem rosto"; e a abertura da boca era medida em coordenadas normalizadas, distorcidas no quadro vertical. A folha também recortava a boca no lugar errado. Detalhes em `10-falhas.md` (#28–#31).
+
+## Não fabrique âncora por código
+
+Âncora (e teste de âncora) só com imagens de um editor de verdade: Qwen no pod, ou Nano Banana / GPT Image pelo usuário. Colar um rosto por código ou montar uma imagem para "testar" engana a QA (passa nos números e falha no olho) e não diz nada sobre o editor. Para testar o fluxo, entregue ao usuário frames reais e bons, com o prompt, e use o que ele devolver. A referência do personagem também precisa ser boa (nítida, rosto grande, figurino inteiro, luz neutra, um personagem só, sem texto).
+
 ## Escolha automática das variações: `qa_anchor.py`
 
 ```bash

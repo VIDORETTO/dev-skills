@@ -26,17 +26,56 @@ def face_model(path=None):
 
 
 def landmarks(path, model=None, fps=24):
-    """Landmarks (468+) do maior rosto por frame (None se não houver rosto)."""
-    lm = vision.FaceLandmarker.create_from_options(vision.FaceLandmarkerOptions(
-        base_options=BaseOptions(model_asset_path=face_model(model)), running_mode=vision.RunningMode.VIDEO, num_faces=1))
-    cap, out, n = cv2.VideoCapture(path), [], 0
+    """Landmarks (468+) do maior rosto por frame, normalizados ao quadro inteiro (None se não houver rosto).
+    Rosto pequeno no quadro (plano médio/aberto, ~130 px de largura) faz o FaceLandmarker falhar na imagem inteira:
+    nesses frames ele tenta de novo num recorte ampliado em volta do rosto (último rosto achado ou o detector do
+    InsightFace) e devolve os pontos já convertidos para o quadro inteiro."""
+    from types import SimpleNamespace as P
+    opts = lambda mode: vision.FaceLandmarkerOptions(base_options=BaseOptions(model_asset_path=face_model(model)),
+                                                     running_mode=mode, num_faces=1)
+    lm = vision.FaceLandmarker.create_from_options(opts(vision.RunningMode.VIDEO))
+    lm_img = None
+    cap, out, n, last_box, rescued = cv2.VideoCapture(path), [], 0, None, 0
     while True:
         ok, f = cap.read()
         if not ok: break
+        h, w = f.shape[:2]
         r = lm.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(f, cv2.COLOR_BGR2RGB)), int(n * 1000 / fps))
-        out.append((r.face_landmarks[0], f.shape[1], f.shape[0]) if r.face_landmarks else None)
+        pts = r.face_landmarks[0] if r.face_landmarks else None
+        if pts is None:
+            box = last_box
+            if box is None:
+                try:
+                    import qa_identity
+                    fs = qa_identity.faces(f)
+                    box = tuple(fs[0].bbox) if fs else None
+                except ImportError:
+                    box = None
+            if box is not None:
+                x0, y0, x1, y1 = box
+                m = 0.6 * max(x1 - x0, y1 - y0)
+                ox, oy = int(max(0, x0 - m)), int(max(0, y0 - m))
+                crop = f[oy:int(min(h, y1 + m)), ox:int(min(w, x1 + m))]
+                if crop.size:
+                    k = 512 / max(crop.shape[:2])
+                    big = cv2.resize(crop, None, fx=k, fy=k, interpolation=cv2.INTER_CUBIC)
+                    lm_img = lm_img or vision.FaceLandmarker.create_from_options(opts(vision.RunningMode.IMAGE))
+                    rr = lm_img.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(cv2.cvtColor(big, cv2.COLOR_BGR2RGB))))
+                    if rr.face_landmarks:
+                        cw, ch = crop.shape[1], crop.shape[0]
+                        pts = [P(x=(ox + q.x * cw) / w, y=(oy + q.y * ch) / h) for q in rr.face_landmarks[0]]
+                        rescued += 1
+        if pts is not None:
+            xs, ys = [q.x * w for q in pts], [q.y * h for q in pts]
+            last_box = (min(xs), min(ys), max(xs), max(ys))
+        else:
+            last_box = None
+        out.append((pts, w, h) if pts is not None else None)
         n += 1
     lm.close()
+    if lm_img: lm_img.close()
+    if rescued:
+        print(f"  (rosto pequeno: {rescued} frames medidos num recorte ampliado)", flush=True)
     return out
 
 
