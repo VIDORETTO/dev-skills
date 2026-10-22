@@ -1,6 +1,6 @@
 """Análise prévia + preparação local (CPU) de um character swap H3.
 
-Uso (no venv da skill, ver references/07-ambiente-local.md):
+Uso (no venv da skill, ver references/08-ambiente-local.md):
   python prepare.py --video IMG.MOV --character ref.png --out job_dir [--lang pt] [--res 768]
                     [--no-demucs] [--whisper large-v3] [--target 130] [--max 157] [--presence-stride 2]
 
@@ -10,7 +10,7 @@ Gera em job_dir/:
   transcript.json       palavras com timestamps (faster-whisper)
   analysis.json         presença por frame, cortes de câmera, energia vocal, eventos não verbais
   clips/<seg>.mp4       clipe de cada segmento (com 18 frames de contexto nos de continuação), áudio = voz isolada
-  frames/<shot>_0.png   1º frame de cada shot no canvas exato (para âncora opcional)
+  frames/<id>_0.png     1º frame de cada shot e de cada segmento no canvas exato (âncora opcional, inclusive no meio do shot)
   job.json              rascunho do job (shots, segmentos, diálogos, eventos) — REVISAR antes de gerar
   analysis.md           relatório legível da análise prévia
 """
@@ -172,6 +172,8 @@ def split(s, e):
     out, cur = [], s
     while e - cur > a.max:
         lo, hi = cur + a.min, min(cur + a.max, e - a.min)
+        if lo > hi:  # resto entre max e max+min: não cabem dois segmentos >= min; corta perto do meio
+            lo, hi = cur + (e - cur) // 2 - 12, cur + (e - cur) // 2 + 12
         cand = range(lo, hi + 1)
         best = min(cand, key=lambda f: (spoken[f], abs((f - cur) - a.target)))
         out.append((cur, best)); cur = best
@@ -208,16 +210,19 @@ for s, e, m in merged:
                  "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
                  "-c:a", "aac", "-b:a", "192k", P(seg["clip"])])
             shot["segments"].append(seg)
-        run(["ffmpeg", "-v", "error", "-y", "-i", P("source_sdr.mp4"), "-vf", f"select='eq(n\\,{s})',{cover_crop_filter(W, H)}",
-             "-fps_mode", "passthrough", "-frames:v", "1", P("frames", f"{sid}_0.png")])
+        for fid, f0 in [(sid, s)] + [(g["id"], g["start"]) for g in shot["segments"][1:]]:
+            run(["ffmpeg", "-v", "error", "-y", "-i", P("source_sdr.mp4"), "-vf", f"select='eq(n\\,{f0})',{cover_crop_filter(W, H)}",
+                 "-fps_mode", "passthrough", "-frames:v", "1", P("frames", f"{fid}_0.png")])
     shots.append(shot)
 
 job = {"source": {"original": os.path.abspath(a.video), "sdr": "source_sdr.mp4", "vocals": "vocals.wav" if has_audio else None,
                   "frames": frames, "fps": FPS, "hdr_converted": info["hdr"], "original_transfer": info["transfer"]},
        "canvas": {"resolution": a.res, "width": W, "height": H},
-       "character": {"image": os.path.abspath(a.character), "description": "PREENCHER: rosto, pele, cabelo, proporções, cada peça de roupa"},
+       "character": {"image": os.path.abspath(a.character), "extra_image": None,
+                     "description": "PREENCHER: rosto, pele, cabelo, proporções, cada peça de roupa"},
        "settings": {"expansion_px": 144, "lora": "h3_character_swap_v1.5.safetensors", "turbo": True, "steps": 8,
-                    "sam_text": "person", "selection": "largest", "language": "Portuguese", "use_anchor": False},
+                    "base_steps": 20, "sam_text": "person", "selection": "largest", "language": "Portuguese",
+                    "use_anchor": False, "guide": None, "identity_backend": "arcface"},
        "shots": shots}
 save_job(job, P("job.json"))
 json.dump({"presence": presence, "cuts": cuts, "rms_025s": rms, "events": events}, open(P("analysis.json"), "w"), indent=0)
@@ -248,6 +253,7 @@ L += ["## Pendências antes de gerar", "",
       "2. Para cada segmento: conferir `dialogue`, `speaker` (target/offscreen/other/none) e escrever `behavior` com tempos "
       "(sopro, respiração, pausas, giros de câmera, entrada/saída de quadro).",
       "3. Ajustar `settings.expansion_px` ao volume do personagem (chapéu/cabelo/capa: 128–160).",
-      "4. Conferir os shots `preserve` (trechos sem a pessoa ficam com o vídeo original).", ""]
+      "4. Conferir os shots `preserve` (trechos sem a pessoa ficam com o vídeo original).",
+      "5. Opcional: `character.extra_image` = 2ª referência do MESMO personagem (close nítido do rosto ou folha do figurino).", ""]
 open(P("analysis.md"), "w", encoding="utf-8").write("\n".join(L))
 print("\n".join(L))

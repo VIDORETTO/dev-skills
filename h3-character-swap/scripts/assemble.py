@@ -3,6 +3,8 @@ nos shots `preserve` + áudio ORIGINAL completo.
 
 Uso:  python assemble.py JOB.json [saida.mp4]
 Também gera <saida>_ref.mp4: a fonte SDR no mesmo canvas (para QA lado a lado e qa_lipsync.py).
+Este é o final no CANVAS (736x1344 no preset 768). Para o final em resolução cheia, com o fundo original, use
+composite.py depois de aprovar os takes.
 """
 import os, sys
 try:
@@ -10,7 +12,7 @@ try:
 except Exception:
     pass
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from h3common import load_job, cover_crop_filter, count_frames, run, FPS
+from h3common import load_job, cover_crop_filter, count_frames, run, history_ok, FPS
 
 job = load_job(sys.argv[1])
 D = job["_dir"]
@@ -27,8 +29,11 @@ for shot in job["shots"]:
              "-an", "-c:v", "libx264", "-crf", "12", "-preset", "slow", "-pix_fmt", "yuv420p", p])
         parts.append(p)
     else:
-        for seg in shot["segments"]:
+        for i, seg in enumerate(shot["segments"]):
             t = seg.get("selected_take")
+            if t and not history_ok(shot, i):
+                problems.append(f"{seg['id']}: o take {t} foi gerado com o histórico de outro take do segmento anterior "
+                                "(rode chain para regerar)")
             f = os.path.join(D, "out", f"{t}.mp4") if t else None
             if not f or not os.path.exists(f):
                 problems.append(f"{seg['id']}: sem take escolhido/gerado")

@@ -27,7 +27,7 @@ O conjunto atual inclui estes componentes independentes:
 | --- | --- | --- |
 | [`hybrid-spec-kit`](./hybrid-spec-kit/README.md) | Dez skills para descobrir, especificar, planejar, fatiar, implementar e revisar mudanças, com um runner determinístico. Otimizado para custo: um filtro de escopo deixa pedidos pequenos fora do kit ([estudo](./hybrid-spec-kit/README.md#custo-e-eficiência-kit-pesado--hybrid)). | `hybrid-spec-kit/skills/*/SKILL.md` e `hybrid-spec-kit/scripts/hybrid.py` |
 | [`readme-standardization-skill`](./readme-standardization-skill/SKILL.md) | Uma skill para analisar um repositório e criar ou padronizar seu README em quatro camadas. | `readme-standardization-skill/SKILL.md`, nome `readme-standardization` |
-| [`h3-character-swap`](./h3-character-swap/SKILL.md) | Uma skill para trocar a pessoa de um vídeo por um personagem de imagem de referência com MiniMax H3 + LoRA akatz v1.5 no ComfyUI/RunPod. Inclui análise prévia local, deploy do pod, geração por segmentos com máscara SAM 3.1, QA objetivo de lip sync, máscara e cor, e montagem com o áudio original. | `h3-character-swap/SKILL.md` e `h3-character-swap/scripts/*.py`, nome `h3-character-swap` |
+| [`h3-character-swap`](./h3-character-swap/README.md) | Uma skill para trocar a pessoa de um vídeo por um personagem de imagem de referência com MiniMax H3 + LoRA akatz v1.5 no ComfyUI/RunPod. Inclui análise prévia local, deploy do pod, geração por segmentos com máscara SAM 3.1, best-of-N por seeds com QA objetiva (lip sync, identidade, máscara e cor), final em resolução cheia sobre o vídeo original e a indicação de um LoRA alternativo (Alissonerdx v1.1). | `h3-character-swap/SKILL.md` e `h3-character-swap/scripts/*.py`, nome `h3-character-swap` |
 
 O objetivo é manter o julgamento semântico nas skills e deixar fatos verificáveis — estrutura, IDs, referências, grafos, projeções, fingerprints, evidências e checkpoints — sob um runtime local reproduzível quando esse runtime existir.
 
@@ -118,7 +118,7 @@ Use `--skill-root .cursor/skills` quando o host usar outra convenção. Arquivos
 
 `h3-character-swap` é autocontida: copie a pasta para o diretório de skills do seu host de agente. Exemplos: `~/.claude/skills/`, `~/.agents/skills/`, `~/.codex/skills/`, `~/.cursor/skills/`, `~/.gemini/skills/`, `~/.config/opencode/skills/`. O nome declarado é `h3-character-swap`.
 
-Os scripts de geração (`run_job.py`, `make_pod.py`, `assemble.py`) usam apenas a biblioteca padrão do Python e o ffmpeg. A análise prévia e o QA (`prepare.py`, `qa_*.py`) precisam de um venv com rembg, OpenCV, MediaPipe, Demucs e faster-whisper, descrito em [`references/08-ambiente-local.md`](./h3-character-swap/references/08-ambiente-local.md). A geração exige uma conta RunPod com o MCP do RunPod conectado.
+Os scripts de geração (`run_job.py`, `make_pod.py`, `assemble.py`) usam apenas a biblioteca padrão do Python e o ffmpeg. A análise prévia, o QA e o composite (`prepare.py`, `qa_*.py`, `composite.py`) precisam de um venv com rembg, OpenCV, MediaPipe, Demucs, faster-whisper e InsightFace, descrito em [`references/08-ambiente-local.md`](./h3-character-swap/references/08-ambiente-local.md). A geração exige uma conta RunPod com o MCP do RunPod conectado.
 
 ## 🚀 Quick Start
 
@@ -230,11 +230,11 @@ A skill [`h3-character-swap`](./h3-character-swap/SKILL.md) troca a pessoa de um
 
 1. **Análise prévia local** (`scripts/prepare.py`, CPU): conversão de HDR para SDR, voz isolada (Demucs), transcrição com timestamps (faster-whisper), eventos vocais não verbais, presença da pessoa por frame, cortes de câmera, shots `generate`/`preserve`, segmentos nas pausas da fala e um rascunho de `job.json` com relatório.
 2. **Aprovação do custo** estimado e deploy do pod (`scripts/make_pod.py`). O boot já contorna as armadilhas conhecidas do template do RunPod e fixa a versão validada da `akatz-labs/h3-character-swap-tool`.
-3. **Geração por segmentos** (`scripts/run_job.py`): máscara SAM 3.1 proporcional ao figurino, prompt por segmento com o diálogo transcrito e as ações não verbais, histórico de 18 frames entre segmentos e seeds escolhidas por QA.
-4. **QA objetivo** (`scripts/qa_lipsync.py`, `qa_mask.py`, `qa_color.py`): correlação da boca por segundo, recorte do personagem e cor do fundo contra a fonte.
-5. **Montagem** (`scripts/assemble.py`) com os trechos sem pessoa preservados do original, o áudio original completo e, ao final, o desligamento de todos os recursos pagos.
+3. **Geração por segmentos** (`scripts/run_job.py`): máscara SAM 3.1 proporcional ao figurino, prompt por segmento com o diálogo transcrito e as ações não verbais, histórico de 18 frames entre segmentos e best-of-N por seeds (`best`, `chain --seeds`).
+4. **QA objetivo** (`scripts/qa_take.py` e `qa_*.py`): boca contra a fonte e contra o áudio (SyncNet), identidade contra a referência e contra a pessoa original (ArcFace), recorte do personagem e cor do fundo.
+5. **Montagem** (`scripts/assemble.py`) com os trechos sem pessoa preservados do original e o áudio original completo; desligamento de todos os recursos pagos; e o final em resolução cheia sobre o vídeo original (`scripts/composite.py`).
 
-As regras, os casos de falha e o estado da arte (incluindo alavancas ainda não testadas) estão em [`h3-character-swap/references/`](./h3-character-swap/references/).
+Se a receita padrão não entregar identidade suficiente, o [README da skill](./h3-character-swap/README.md#lora-alternativo) descreve um LoRA alternativo (Alissonerdx v1.1) e como testá-lo. As regras, os casos de falha e o estado da arte estão em [`h3-character-swap/references/`](./h3-character-swap/references/).
 
 ### Artefatos e fontes de verdade
 
@@ -317,6 +317,7 @@ O pacote Hybrid mantém as referências compartilhadas em `shared/`, as dez skil
 │   ├── SKILL.md
 │   └── references/
 ├── h3-character-swap/
+│   ├── README.md
 │   ├── SKILL.md
 │   ├── assets/
 │   ├── references/
@@ -331,7 +332,8 @@ Documentação mais detalhada:
 - [`hybrid-spec-kit/docs/validation-report.md`](./hybrid-spec-kit/docs/validation-report.md) — validações registradas.
 - [`hybrid-spec-kit/docs/sources.md`](./hybrid-spec-kit/docs/sources.md) — proveniência e adaptações.
 - [`readme-standardization-skill/references/`](./readme-standardization-skill/references/) — workflow, tipos de projeto, seções, estilo e quality gate do README.
-- [`h3-character-swap/references/`](./h3-character-swap/references/) — análise prévia, pipeline, pré-processamento, prompt, máscara, âncora, parâmetros, RunPod, QA, falhas, caso real, API do ComfyUI, exemplos, fontes e fronteira.
+- [`h3-character-swap/README.md`](./h3-character-swap/README.md) — visão geral da skill, instalação, uso, LoRA alternativo e limitações.
+- [`h3-character-swap/references/`](./h3-character-swap/references/) — análise prévia, pipeline, pré-processamento, prompt, máscara, âncora, parâmetros, RunPod, QA, falhas, caso real, API do ComfyUI, exemplos, fontes, fronteira, guia de profundidade, composite e migração para o Relay 2.0.
 
 ## 🧑‍🔧 Desenvolvimento
 

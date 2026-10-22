@@ -1,0 +1,11 @@
+Edit Image 1. Image 2 shows the character's identity only.
+
+Replace ONLY the woman in Image 1 with the character from Image 2. Keep the character's face, hair and complete costume exactly as in Image 2.
+
+Keep EVERYTHING else from Image 1 exactly the same: the same camera framing and crop, the same image size and aspect ratio, the same garden background, gazebo, wicker chair, lighting, colors and grain. Do not zoom in or out, do not move the camera, do not extend or crop the image, do not add any other person. If you cannot keep this aspect ratio, add plain borders around the whole image instead of cropping it.
+
+The character must take her exact place and pose: seated in the wicker chair, same position and size in the frame, hands clasped on the lap, head slightly tilted, looking straight at the camera, lips slightly parted in a soft smile, exactly as in Image 1.
+
+Light the character with the soft overcast daylight of Image 1, not studio light. Do not copy the pose, background or framing of Image 2.
+
+Output: one photorealistic image that looks like a real frame of the same video.

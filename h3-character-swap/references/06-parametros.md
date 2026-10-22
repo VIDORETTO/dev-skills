@@ -22,7 +22,7 @@
   - O Turbo 8-step é a receita do autor.
   - A comunidade relata que **para closes com lip sync visível a versão base com ~20 steps (sem Turbo) sincroniza melhor**, e que Turbo de 4 steps perde precisão.
   - Recomendação: usar Turbo 8 para iterar. Se a QA de lip sync reprovar um close, renderizar esse segmento sem Turbo, com 20 steps, `res_multistep` e `simple`.
-  - Na ferramenta, para tirar o Turbo: remover o nó 4 da cadeia, ligando `850.model` a `["3",0]`, e mudar o nó 801 para `steps 20`.
+  - Na ferramenta, para tirar o Turbo: remover o nó 4 da cadeia, ligando `850.model` a `["3",0]`, e mudar o nó 801 para `steps 20`. O `run_job.py` faz isso por take com `--no-turbo` (ou para o job todo com `settings.turbo=false`; steps em `settings.base_steps`). O take ganha o sufixo `_base`.
 
 ## Janelas, histórico e duração
 

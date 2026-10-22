@@ -5,6 +5,7 @@
 ```bash
 python scripts/make_pod.py           # só H3 + SAM (~45 GB, disco de 150 GB)
 python scripts/make_pod.py --qwen    # + Qwen-Image-Edit 2511 para âncoras (~76 GB, disco de 180 GB)
+python scripts/make_pod.py --latentsync   # + LatentSync 1.6 para `run_job lipfix` (+20 GB de disco; instala em segundo plano)
 ```
 
 A saída é o `body` da ferramenta MCP `create-pod`. Antes de criar, leia o guia `runpod-mcp` (`read-guide`) se ainda não leu nesta sessão. Informe ao usuário o preço/h que o create devolver: a RTX PRO 6000 é cobrada a **US$ 2,49/h**, não os US$ 1,69 que aparecem na tabela de capacidade.
@@ -24,12 +25,20 @@ A saída é o `body` da ferramenta MCP `create-pod`. Antes de criar, leia o guia
 | Nós da ferramenta oficial ausentes | clona `akatz-labs/h3-character-swap-tool` e copia `worker_nodes/h3_character_swap` para `/opt/comfyui-baked/custom_nodes` (o entrypoint copia para o workspace) |
 | O histórico entre segmentos (~213 MB `.npz`) não passa no upload do proxy | nó próprio `SaveH3History` grava em `input/` **no pod** |
 | OOM no download com `HF_XET_HIGH_PERFORMANCE` em máquina com pouca RAM | não usar; a máquina GPU tem RAM de sobra |
+| Download que falha 3 vezes passava em silêncio | imprime `SEED_FAILED` e `BOOT_ABORT`; o ComfyUI **não** sobe e o pod fica de pé para ler o log |
+| LatentSync fixa torch 2.5.1/cu121 (não roda na Blackwell) | venv `--system-site-packages` reaproveitando o torch do pod; só as outras dependências entram no venv |
 
 ## Depois de criar
 
 1. Fazer polling de `https://<podId>-8188.proxy.runpod.net/system_stats` até responder 200. Usar user-agent de curl: o proxy devolve **403** ao urllib.
 2. Rodar `python scripts/run_job.py JOB/job.json check <podId>`. Ele confere nós, listas de modelos e argv.
 3. Logs: a ferramenta `stream-pod-logs` com `source: container`. Use `since` para não estourar o limite. A saída é grande e o `tail` alto estoura.
+
+## LatentSync no pod (`--latentsync`, experimental)
+
+- A instalação roda em segundo plano depois do boot (o ComfyUI não espera). Log em `/workspace/latentsync.log`; pronto quando aparece `LATENTSYNC_OK` (arquivo `/workspace/LATENTSYNC_READY`).
+- O `check` do `run_job.py` mostra se o nó `H3LatentSyncWindow` existe. Se a instalação falhou, o nó responde com o erro e o caminho do log.
+- O nó descarrega os modelos do H3 da VRAM antes de rodar (o LatentSync pede ~18 GB).
 
 ## API do ComfyUI pelo proxy
 

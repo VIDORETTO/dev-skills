@@ -30,6 +30,68 @@ def cover_crop_filter(w, h):
             f"setsar=1,crop=w={w}:h={h}")
 
 
+def plate_region(src_w, src_h, w, h):
+    """Onde o canvas (w x h) cai no quadro da fonte (src_w x src_h), invertendo o cover_crop_filter.
+    Devolve (escala fonte->canvas, x0, y0) em pixels da fonte: canvas_px = (fonte_px - x0) * escala."""
+    s = max(w / src_w, h / src_h)
+    sw, sh = math.ceil(max(w, h * src_w / src_h) - 1e-6), math.ceil(max(h, w * src_h / src_w) - 1e-6)
+    return s, ((sw - w) // 2) / s, ((sh - h) // 2) / s
+
+
+def item_start(job, item_id):
+    """Frame inicial de um shot ou de um segmento."""
+    for shot in job["shots"]:
+        if shot["id"] == item_id:
+            return shot["start"]
+        for seg in shot.get("segments", []):
+            if seg["id"] == item_id:
+                return seg["start"]
+    raise SystemExit(f"{item_id} não é shot nem segmento do job")
+
+
+def ensure_frame(job, item_id, full_res=False):
+    """1º frame do shot/segmento no recorte do canvas. full_res=False: frames/<id>_0.png no tamanho do canvas
+    (é o que o H3 recebe). full_res=True: mesmo recorte na escala da fonte (anchor_kit/<id>_frame.png, para editores
+    de imagem externos trabalharem com mais pixels). Extrai na hora se não existir."""
+    D, W, H = job["_dir"], job["canvas"]["width"], job["canvas"]["height"]
+    src = os.path.join(D, job["source"]["sdr"])
+    path = os.path.join(D, "anchor_kit", f"{item_id}_frame.png") if full_res else os.path.join(D, "frames", f"{item_id}_0.png")
+    if os.path.exists(path):
+        return path
+    if full_res:
+        info = video_info(src)
+        s, _, _ = plate_region(info["width"], info["height"], W, H)
+        W, H = int(round(W / s / 2) * 2), int(round(H / s / 2) * 2)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    run(["ffmpeg", "-v", "error", "-y", "-i", src, "-vf",
+         f"select='eq(n\\,{item_start(job, item_id)})',{cover_crop_filter(W, H)}",
+         "-fps_mode", "passthrough", "-frames:v", "1", path])
+    return path
+
+
+def take_record(seg, take):
+    return next((t for t in seg.get("takes", []) if t["take"] == take), None)
+
+
+def history_ok(shot, idx):
+    """O take escolhido do segmento idx foi gerado a partir do take escolhido do segmento anterior?"""
+    if idx == 0:
+        return True
+    seg, prev = shot["segments"][idx], shot["segments"][idx - 1]
+    rec = take_record(seg, seg.get("selected_take"))
+    # takes antigos (antes do campo history_from) não têm a informação: não dá para provar, aceita
+    return rec is None or "history_from" not in rec or rec["history_from"] == prev.get("selected_take")
+
+
+def vpy():
+    """Python do venv local (QA e análise). Ordem: env H3_VPY, venv padrão do Windows, python atual."""
+    if os.environ.get("H3_VPY"):
+        return os.environ["H3_VPY"]
+    win = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Temp", "cswap-venv", "Scripts", "python.exe")
+    import sys
+    return win if os.path.exists(win) else sys.executable
+
+
 def window_for(target, history):
     """Menor janela 17n+5 que comporta o alvo (+1 boundary se houver histórico)."""
     need = target + (1 if history else 0)

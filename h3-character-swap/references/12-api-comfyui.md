@@ -28,6 +28,9 @@ O grafo-base está em `assets/h3_character_swap.api.json`, exportado de `akatz-l
 | 806 | H3CharacterSwapController | executa as passadas | — |
 | 807 | H3CharacterSwapAssemble | salva o MP4 com áudio | **ler a saída daqui**: `outputs["807"]["h3_character_swap"][0]["output"]`; result[0] = frames gerados |
 | 900 | SaveH3History (nosso) | grava os últimos 18 frames em `input/hist_<take>.npz` | adicionado pelo `run_job.py` |
+| 310 | LoadImage | 3º slot (`803.segment_reference`): âncora no meio do shot ou referência extra | adicionado pelo `run_job.py` quando há |
+| 32 / 33 | LoadVideo / H3CharacterSwapPrepareVideo | clipe-guia (`--guide`): só `803.source_video`, `803.source`, `803.source_audio` apontam para eles; SAM segue no 31 | adicionados pelo `run_job.py` com `--guide` |
+| 1 | H3LatentSyncWindow (nosso, `make_pod --latentsync`) | grafo à parte do `lipfix`: roda o LatentSync 1.6 num arquivo de `input/` e salva em `output/` | `outputs["1"]["video"][0]` |
 
 ## Modo segmento (prompt por segmento, como o app oficial)
 
@@ -39,12 +42,23 @@ O grafo-base está em `assets/h3_character_swap.api.json`, exportado de `akatz-l
 
 ## Referências (ordem de rótulos no prompt)
 
+Por dentro (`relay/passes.py`): `ref_image_0` = personagem, `ref_image_1` = âncora/boundary (removido quando `use_anchor` é falso), `ref_image_2` = `segment_reference`, `ref_video_0` = clipe. O tokenizer numera na ordem, pulando os ausentes (`sampling.py`): por isso o slot extra vira `<Picture 2>` no 1º segmento sem âncora. Só o 1º frame de cada imagem conta (um lote de imagens no nó 9 **não** vira várias referências).
+
 | Rótulo | Conteúdo |
 |---|---|
 | `<Picture 1>` | personagem |
-| `<Picture 2>` | âncora (1º segmento com âncora) ou boundary gerado (continuação) |
-| `<Video 1>` | clipe-fonte |
+| `<Picture 2>` | âncora (1º segmento com âncora), boundary gerado (continuação) ou, sem nenhum dos dois, o slot extra |
+| `<Picture 3>` | slot extra quando há âncora/boundary |
+| `<Video 1>` | clipe-fonte (ou o clipe-guia, com `--guide`) |
 | `<Audio 1>` | áudio do clipe |
+
+## Nome dos takes e histórico
+
+`<seg>_s<seed>[_<guia>][_base][_h<4 hex>][_anc<4 hex>]`: `_base` = sem Turbo; `_hXXXX` = continuação, com os 4 primeiros hex do SHA-1 do take anterior usado; `_ancXXXX` = gerado com âncora (de 1º frame ou no meio do shot), marca do arquivo da âncora. O `job.json` guarda em cada take `history_from`, `guide`, `turbo`, `anchor`, `extra` e, depois do `best`, o resumo `qa`. Takes do `lipfix` acrescentam `_lf<frame>`.
+
+## ComfyUI fora do RunPod
+
+Em todos os comandos, `<pod>` pode ser uma URL completa (`http://127.0.0.1:8188`) em vez do ID do pod.
 
 ## Alternativas avaliadas
 
