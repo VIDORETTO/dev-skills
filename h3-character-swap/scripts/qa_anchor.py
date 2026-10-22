@@ -6,6 +6,9 @@ fechou/abriu a boca diferente e, numa borda, inventou uma 2ª pessoa; o H3 segui
 para 0,28. Este script mede exatamente esses defeitos e escolhe a melhor variação antes de gastar GPU no vídeo.
 
 Uso (venv): python qa_anchor.py JOB.json <shot|seg> [anchor1.png anchor2.png ...] [--no-paste] [--set] [--json saida.json]
+Saídas: a tabela, as versões _paste.png, a folha de revisão visual review_<id>.jpg (original | editada | colada | rosto e
+boca ampliados, por variação: o agente DEVE abrir e conferir a checklist do 05-ancora.md) e, para cada problema, a
+frase pronta para pedir a correção ao editor (Nano Banana / GPT Image).
   sem arquivos: usa JOB/out/anchor_<id>_s*.png (saída do `run_job.py anchor`, Qwen no pod) e
                JOB/anchors_user/<id>*.png|jpg|webp (feitas pelo usuário no Nano Banana / GPT Image; ver anchor_kit.py)
   Toda variação é ALINHADA ao frame original antes de medir (ORB + RANSAC no fundo, transformação de similaridade):
@@ -24,8 +27,10 @@ Medidas por variação (contra o frame da fonte no canvas, frames/<id>_0.png):
   boca_dif     |MAR âncora − MAR fonte| (abertura da boca; a âncora fixa a boca do frame 0)
   id_ref/id_src identidade ArcFace contra a referência e contra a pessoa original (vazamento)
   pessoas      rostos detectados na âncora x na fonte (pessoa inventada)
+  nitidez      nitidez do rosto na âncora / na fonte (variância do Laplaciano; < 0,5 = borrado ou plastificado)
 Nota = id_ref − id_src + iou − 2·|escala−1| − deslocamento − 3·boca_dif − 1·pessoa_extra (ordena; não é absoluta).
-Reprova (✗) se escala fora de 0,8–1,25, deslocamento > 0,35, iou < 0,5, pessoa extra, edição que cortou > 5% da pessoa
+Reprova (✗) se escala fora de 0,8–1,25, deslocamento > 0,35, iou < 0,5, pessoa extra, rosto com < 35% da nitidez da
+fonte, edição que cortou > 5% da pessoa
 (bordas recortadas pelo editor: ali ficaria a pessoa original) ou rosto ainda da pessoa original
 (id_src > 0,5 ou id_ref − id_src < 0,1).
 """
@@ -133,6 +138,8 @@ def evaluate(src, anc, ref_emb, faces_fn, valid=None):
         r["rosto_escala"] = float(ga[2] / gs[2])
         r["rosto_desloc"] = float(np.hypot(ga[0] - gs[0], ga[1] - gs[1]) / gs[2])
         r["boca_dif"] = float(abs(ga[3] - gs[3]))
+        r["boca_mais_aberta_na_fonte"] = bool(gs[3] > ga[3])
+        r["nitidez"] = sharpness_ratio(src, anc, gs)
     fa, fs = faces_fn(anc), faces_fn(src)
     r["pessoas"] = [len(fa), len(fs)]
     if fa and ref_emb is not None:
@@ -140,6 +147,99 @@ def evaluate(src, anc, ref_emb, faces_fn, valid=None):
         if fs:
             r["id_src"] = float(fa[0].normed_embedding @ fs[0].normed_embedding)
     return r, ms, ma
+
+
+def face_box(src, g, k=1.6):
+    """Quadrado em volta do rosto (k larguras de rosto), recortado aos limites da imagem."""
+    cx, cy, w = g[0], g[1], g[2] * k
+    H, W = src.shape[:2]
+    x0, y0 = int(max(0, cx - w / 2)), int(max(0, cy - w / 2))
+    return x0, y0, int(min(W, cx + w / 2)), int(min(H, cy + w / 2))
+
+
+def sharpness_ratio(src, anc, g):
+    """Nitidez do rosto na âncora / na fonte (variância do Laplaciano). < 0,5 = borrado ou "plastificado"."""
+    x0, y0, x1, y1 = face_box(src, g, 1.0)
+    lap = lambda im: cv2.Laplacian(cv2.cvtColor(im[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY), cv2.CV_64F).var()
+    base = lap(src)
+    return float(lap(anc) / base) if base > 1e-6 else None
+
+
+# Como pedir a correção ao editor (Nano Banana / GPT Image): (explicação, frase para colar no mesmo chat do editor)
+HINTS = {
+    "enquadramento": ("o editor mudou o enquadramento (zoom, posição ou tamanho da pessoa)",
+                      "The framing changed. Use Image 1 exactly as it is: same crop and zoom. The character must occupy "
+                      "exactly the same place and size as the original person."),
+    "cortou": ("o editor recortou o quadro e cortou parte da pessoa",
+               "Do not crop the image. Keep all of Image 1; if you need another aspect ratio, add plain borders instead."),
+    "original": ("a pessoa original continua lá (a troca não aconteceu ou ficou misturada)",
+                 "The original person is still visible. Replace the person's face, hair and clothes completely with the "
+                 "character from Image 2."),
+    "extra": ("o editor inventou outra pessoa",
+              "Do not add any other person. Only one person, in the original person's place."),
+    "sem_rosto": ("não dá para ver o rosto do personagem",
+                  "The character's face must be clearly visible, at the same angle as the person in Image 1."),
+    "boca_aberta": ("a boca está mais fechada do que no frame original",
+                    "Match the mouth of the person in Image 1 exactly: lips slightly open, mid-word, as in Image 1."),
+    "boca_fechada": ("a boca está mais aberta do que no frame original",
+                     "Match the mouth of the person in Image 1 exactly: lips closed or relaxed, as in Image 1."),
+    "nitidez": ("o rosto saiu borrado ou com aparência plástica",
+                "Keep the image sharp and photographic at full resolution, with natural skin texture and fine fabric "
+                "detail; no blur, no smoothing."),
+    "resolucao": ("a imagem voltou em resolução menor que o frame",
+                  "Return the edited image at the highest resolution available, without downscaling or cropping."),
+}
+
+
+def hints_for(r):
+    keys = []
+    for p in r["problemas"]:
+        if p.startswith(("escala", "rosto deslocado", "silhueta")): keys.append("enquadramento")
+        elif p.startswith("edição cortou"): keys.append("cortou")
+        elif p.startswith("rosto ainda"): keys.append("original")
+        elif p == "pessoa extra": keys.append("extra")
+        elif p == "sem rosto": keys.append("sem_rosto")
+        elif p.startswith("rosto borrado"): keys.append("nitidez")
+    if r.get("boca_dif", 0) > 0.06:
+        keys.append("boca_aberta" if r.get("boca_mais_aberta_na_fonte") else "boca_fechada")
+    if r.get("nitidez") is not None and r["nitidez"] < 0.6: keys.append("nitidez")
+    if r.get("alinhamento", {}).get("escala", 1) > 1.05: keys.append("resolucao")
+    return list(dict.fromkeys(keys))
+
+
+def review_sheet(path, src, rows, imgs, gs):
+    """Folha para a revisão VISUAL do agente: por variação, original | editada (alinhada) | colada | rosto e boca
+    ampliados (original x colada). O agente abre a imagem e confere a checklist do 05-ancora.md."""
+    H, W = src.shape[:2]; tw = 240; th = int(tw * H / W); fz = th // 3   # 2 rostos + 2 bocas (meia altura) = th
+    def lab(im, t, ok=None):
+        im = im.copy(); c = (0, 170, 0) if ok else (0, 0, 220) if ok is not None else (40, 40, 40)
+        cv2.rectangle(im, (0, 0), (im.shape[1], 26), (255, 255, 255), -1)
+        cv2.putText(im, t, (5, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, c, 1, cv2.LINE_AA)
+        return im
+    def face(im, k, size):
+        if not gs: return np.full((size, size, 3), 200, np.uint8)
+        x0, y0, x1, y1 = face_box(im, gs, k)
+        return cv2.resize(im[y0:y1, x0:x1], (size, size), interpolation=cv2.INTER_CUBIC)
+    def mouth(im):
+        if not gs: return np.full((fz // 2, fz, 3), 200, np.uint8)
+        cx, cy, w = gs[0], gs[1] + gs[2] * 0.28, gs[2] * 0.7
+        x0, y0 = int(max(0, cx - w / 2)), int(max(0, cy - w / 4))
+        return cv2.resize(im[y0:int(min(H, cy + w / 4)), x0:int(min(W, cx + w / 2))], (fz, fz // 2), interpolation=cv2.INTER_CUBIC)
+    blocks = []
+    for r in rows:
+        al, pasted = imgs[r["arquivo"]]
+        ok = not r["problemas"]
+        sm = lambda im: cv2.resize(im, (tw, th), interpolation=cv2.INTER_AREA)
+        faces = np.vstack([lab(face(src, 1.6, fz), "rosto original"), lab(face(pasted, 1.6, fz), "rosto colado", ok),
+                           lab(mouth(src), "boca original"), lab(mouth(pasted), "boca colada", ok)])
+        faces = cv2.copyMakeBorder(faces, 0, max(0, th - faces.shape[0]), 0, 0, cv2.BORDER_CONSTANT, value=(255, 255, 255))[:th]
+        row = np.hstack([lab(sm(src), "original"), lab(sm(al), "editada (alinhada)"),
+                         lab(sm(pasted), ("OK " if ok else "REPROVADA ") + f"nota {r['nota']:.2f}", ok), faces])
+        title = np.full((30, row.shape[1], 3), 255, np.uint8)
+        cv2.putText(title, f"{r['arquivo']}  " + ("; ".join(r["problemas"]) if r["problemas"] else "sem problema medido"),
+                    (6, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 220) if r["problemas"] else (0, 140, 0), 1, cv2.LINE_AA)
+        blocks.append(np.vstack([title, row, np.full((8, row.shape[1], 3), 255, np.uint8)]))
+    cv2.imwrite(path, np.vstack(blocks), [cv2.IMWRITE_JPEG_QUALITY, 90])
 
 
 def score(r):
@@ -161,6 +261,7 @@ def verdict(r):
         if r["rosto_desloc"] > 0.35: bad.append(f"rosto deslocado {r['rosto_desloc']:.2f}")
     if r["iou"] < 0.5: bad.append(f"silhueta iou {r['iou']:.2f}")
     if r.get("pessoa_cortada", 0) > 0.05: bad.append(f"edição cortou {r['pessoa_cortada']*100:.0f}% da pessoa")
+    if r.get("nitidez") is not None and r["nitidez"] < 0.35: bad.append(f"rosto borrado ({r['nitidez']:.0%} da nitidez)")
     if r.get("id_src") is not None and (r["id_src"] > 0.5 or (r.get("id_ref") is not None and r["id_ref"] - r["id_src"] < 0.1)):
         bad.append(f"rosto ainda é o original (id fonte {r['id_src']:.2f})")
     if r["pessoas"][0] > r["pessoas"][1] and r.get("pessoas_colada", r["pessoas"])[0] > r["pessoas"][1]:
@@ -190,7 +291,8 @@ def main():
     refs = [job["character"]["image"]] + ([job["character"]["extra_image"]] if job["character"].get("extra_image") else [])
     ref = qa_identity.ref_embedding_arcface([p if os.path.isabs(p) else os.path.join(D, p) for p in refs])
     ref_emb = ref[0] if ref else None
-    rows = []
+    rows, imgs = [], {}
+    gs_src = face_geom(src)
     for f in files:
         anc = cv2.imread(f)
         if anc is None:
@@ -208,6 +310,8 @@ def main():
         if cut > 0.01:
             r.setdefault("avisos", []).append(f"a edição cortou {cut*100:.0f}% da pessoa (bordas do quadro): ali fica a pessoa "
                                               "ORIGINAL; peça ao editor bordas em vez de recorte")
+        if r.get("nitidez") is not None and r["nitidez"] < 0.6:
+            r.setdefault("avisos", []).append(f"rosto com {r['nitidez']:.0%} da nitidez do original: borrado/plastificado")
         if al.get("escala", 1) > 1.05:
             r.setdefault("avisos", []).append(f"âncora ampliada {al['escala']:.2f}x para caber no frame: menos detalhe "
                                               "(peça ao editor a resolução máxima, sem recortar)")
@@ -217,6 +321,9 @@ def main():
             r["colada"] = os.path.relpath(pf, D)
             rp, _, _ = evaluate(src, pasted, ref_emb, qa_identity.faces)
             r["pessoas_colada"] = rp["pessoas"]; r["fundo_psnr_colada"] = rp["fundo_psnr"]
+        else:
+            pasted = anc
+        imgs[r["arquivo"]] = (anc, pasted)
         r["nota"], r["problemas"] = score(r), verdict(r)
         rows.append(r)
     if not rows:
@@ -227,7 +334,7 @@ def main():
     for r in rows:
         print(f"  {'✓' if not r['problemas'] else '✗'} {r['arquivo']:34s} nota {r['nota']:6.3f} · iou {fmt(r['iou'])} · "
               f"escala {fmt(r.get('rosto_escala'))} · desloc {fmt(r.get('rosto_desloc'))} · boca {fmt(r.get('boca_dif'), 3)} · "
-              f"id {fmt(r.get('id_ref'))}/{fmt(r.get('id_src'))} · fundo {fmt(r['fundo_psnr'], 1)} dB · pessoas {r['pessoas'][0]}"
+              f"id {fmt(r.get('id_ref'))}/{fmt(r.get('id_src'))} · nitidez {fmt(r.get('nitidez'))} · pessoas {r['pessoas'][0]}"
               + (f"  <-- {', '.join(r['problemas'])}" if r["problemas"] else ""))
         al = r["alinhamento"]
         if al["metodo"] == "alinhado" and (abs(al["escala"] - 1) > 0.01 or abs(al["tx"]) > 1 or abs(al["ty"]) > 1):
@@ -235,7 +342,18 @@ def main():
                   f"desloc ({al['tx']:+.0f}, {al['ty']:+.0f}) px · {al['inliers']} pontos")
         for w in r.get("avisos", []):
             print(f"      aviso: {w}")
+    for r in rows:
+        r["correcoes"] = [{"motivo": HINTS[k][0], "pedir_ao_editor": HINTS[k][1]} for k in hints_for(r)]
+    sheet_dir = os.path.dirname(rows[0]["arquivo"]) or "out"
+    sheet = os.path.join(D, sheet_dir, f"review_{target}.jpg")
+    review_sheet(sheet, src, rows, imgs, gs_src)
+    print(f"\nfolha de revisão VISUAL (abrir e conferir a checklist do 05-ancora.md): {sheet}")
     best = rows[0]
+    fixes = {c["pedir_ao_editor"]: c["motivo"] for r in rows for c in r["correcoes"]}
+    if fixes:
+        print("\nPara pedir novas variações, mande no MESMO chat do editor (motivo → frase):")
+        for en, pt in fixes.items():
+            print(f"  - {pt}:\n    {en}")
     if best["problemas"]:
         print("Nenhuma variação passou: gere outras (Qwen: mais seeds; editor externo: novas variações com o mesmo prompt) "
               "ou NÃO use âncora neste shot (05-ancora.md).")

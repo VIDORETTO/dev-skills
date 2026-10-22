@@ -7,6 +7,8 @@ Gera em JOB/anchor_kit/:
   personagem.<ext>      a imagem de referência do personagem (e personagem_extra.<ext>, se houver)
   PROMPT_<id>.txt       o prompt pronto para colar (em inglês: os dois editores seguem melhor)
   COMO_FAZER.md         o passo a passo para o usuário, em português
+  ENTREGA.md            o que o agente entrega na conversa: caminhos dos arquivos a anexar + o prompt completo
+                        (o mesmo texto é impresso no terminal)
 e cria JOB/anchors_user/, onde as imagens editadas devem voltar como <id>_v1.png, <id>_v2.png…
 Depois: VPY S/qa_anchor.py JOB.json <id> --set  (alinha ao frame original, mede, cola de volta e escolhe a melhor)
 """
@@ -67,9 +69,10 @@ abertura de boca**. Uma âncora "bonita" mas reenquadrada piora o resultado (no 
    - salve em `{back}` com os nomes `<id>_v1.png`, `<id>_v2.png`…; **ou**
    - anexe aqui no chat dizendo de qual shot é cada uma.
 
-Depois disso a IA mede cada variação (enquadramento, escala do rosto, boca, identidade, pessoa extra), cola o
-personagem de volta sobre o frame original para o fundo ficar idêntico e escolhe a melhor. Se nenhuma passar, ela
-avisa e você pode gerar outras ou seguir sem âncora.
+Depois disso a IA mede cada variação (enquadramento, escala do rosto, boca, identidade, nitidez, pessoa extra ou
+cortada), confere visualmente costura, mãos, restos da pessoa original, figurino e luz, cola o personagem de volta
+sobre o frame original para o fundo ficar idêntico e diz qual variação aprovou. Se nenhuma passar, ela explica o
+motivo e te dá a frase exata para pedir a correção no mesmo chat do editor; ou vocês seguem sem âncora.
 
 ## Avisos
 
@@ -104,11 +107,23 @@ def main():
     listing = "\n".join(f"- `{os.path.basename(f)}`" for f in files)
     open(os.path.join(kit, "COMO_FAZER.md"), "w", encoding="utf-8").write(
         HOWTO.format(files=listing, back=os.path.relpath(back, D) + "/"))
-    print(f"pacote em {kit}:")
-    for f in files + [os.path.join(kit, "COMO_FAZER.md")]:
-        print("  ", os.path.relpath(f, D))
-    print(f"as imagens editadas voltam para {os.path.relpath(back, D)}/<id>_v1.png …  e depois:")
-    print(f"  VPY S/qa_anchor.py {sys.argv[1]} {' / '.join(sys.argv[2:])} --set")
+    # Bloco de ENTREGA: o agente envia estes arquivos ao usuário (anexo/cartão de arquivo do host) e cola o prompt
+    # no chat. Também fica salvo em ENTREGA.md.
+    imgs = [f for f in files if not f.endswith(".txt")]
+    lines = ["# Entrega ao usuário: âncora de 1º frame", "",
+             "Arquivos para ENVIAR ao usuário (anexar na conversa):"]
+    lines += [f"- {os.path.abspath(f)}" for f in imgs]
+    for item in sys.argv[2:]:
+        lines += ["", f"## Shot/segmento {item}", "",
+                  f"Anexe no editor, nesta ordem: 1) `{item}_frame.png`  2) `personagem` "
+                  "(e `personagem_extra`, se houver). Cole este prompt sem mudar nada:", "", "```text", brief(desc), "```",
+                  "", f"Devolva 2–4 variações como `{item}_v1.png`, `{item}_v2.png`… (PNG, resolução máxima, sem recortar)."]
+    lines += ["", f"Pasta de retorno: {os.path.abspath(back)}",
+              f"Depois do retorno: VPY S/qa_anchor.py {sys.argv[1]} <id> --set  (e abrir a folha de revisão que ele gera)"]
+    text = "\n".join(lines)
+    open(os.path.join(kit, "ENTREGA.md"), "w", encoding="utf-8").write(text + "\n")
+    print(text)
+    print(f"\n(passo a passo completo para o usuário: {os.path.abspath(os.path.join(kit, 'COMO_FAZER.md'))})")
 
 
 if __name__ == "__main__":

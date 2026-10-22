@@ -124,7 +124,7 @@ O agente chama os scripts por você; os comandos abaixo servem para acompanhar o
 | Criar o pod | `python S/make_pod.py` (JSON para a ferramenta `create-pod` do MCP) |
 | Checar o pod | `python S/run_job.py JOB/job.json check <pod>` |
 | Melhor de 3 seeds | `python S/run_job.py JOB/job.json best <pod> A1 11,22,33` |
-| Âncora feita por você (Nano Banana / GPT Image) | `python S/anchor_kit.py JOB/job.json A`, siga `JOB/anchor_kit/COMO_FAZER.md`, devolva em `JOB/anchors_user/` e rode `VPY S/qa_anchor.py JOB/job.json A --set` |
+| Âncora feita por você (Nano Banana / GPT Image) | O agente roda `python S/anchor_kit.py JOB/job.json A` e te entrega o frame, a imagem do personagem e o prompt; você devolve as variações e ele roda `VPY S/qa_anchor.py JOB/job.json A`, confere a folha `review_A.jpg` e diz qual aprovou ou o que pedir ao editor |
 | Âncora feita pela IA (Qwen no pod `--qwen`) | `python S/run_job.py JOB/job.json anchor <pod> A 11,22,33` e depois `VPY S/qa_anchor.py JOB/job.json A --set` |
 | Trocar o take escolhido | `python S/run_job.py JOB/job.json select A1 A1_s22` |
 | Encadear o shot | `python S/run_job.py JOB/job.json chain <pod> A [--seeds 11,22]` |
@@ -233,8 +233,8 @@ h3-character-swap/
     ├── composite.py       # final em resolução cheia sobre o vídeo original
     ├── make_guide.py      # clipes-guia de profundidade/face mesh (experimental)
     ├── qa_take.py         # QA completa de um take, com nota
-    ├── anchor_kit.py      # pacote para você fazer a âncora no Nano Banana / GPT Image
-    ├── qa_anchor.py       # alinha, mede, cola de volta e escolhe a melhor âncora de frame
+    ├── anchor_kit.py      # entrega frame + personagem + prompt para você fazer a âncora no Nano Banana / GPT Image
+    ├── qa_anchor.py       # alinha, mede, cola de volta, gera a folha de revisão e escolhe a melhor âncora
     ├── qa_lipsync.py      # boca gerada x boca da fonte
     ├── qa_syncnet.py      # boca gerada x áudio (SyncNet)
     ├── qa_identity.py     # identidade (ArcFace/DINOv2)

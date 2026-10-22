@@ -85,13 +85,47 @@ A escolha é do usuário e acontece **na Fase A, antes de criar o pod** (a opç�
 
 ### Se o usuário fizer
 
-1. `python S/anchor_kit.py JOB/job.json A` → `JOB/anchor_kit/` com `A_frame.png` (o frame no recorte do vídeo final, na resolução da fonte), `personagem.*`, `PROMPT_A.txt` e `COMO_FAZER.md`.
-2. Mostre ao usuário o `COMO_FAZER.md` e o prompt, em resumo: anexar **o frame e depois o personagem**, colar o prompt sem mudar, gerar 2–4 variações, descartar as que reenquadraram, mudaram a boca ou cortaram a pessoa, baixar em PNG na resolução máxima e **não recortar**.
-3. **Espere as imagens.** Elas voltam em `JOB/anchors_user/A_v1.png`, `A_v2.png`… ou anexadas no chat (salve-as nessa pasta com esses nomes).
-4. `VPY S/qa_anchor.py JOB/job.json A --set`: alinha cada imagem ao frame original (ORB no fundo; corrige o 2:3 do GPT Image e reenquadres leves), mede, cola de volta e grava a melhor. Mostre a tabela e a imagem colada ao usuário.
-5. Se nenhuma passar: o usuário gera outras com o mesmo prompt, ou o shot segue sem âncora.
+1. `python S/anchor_kit.py JOB/job.json A [C …]` → `JOB/anchor_kit/` com `A_frame.png` (o frame no recorte do vídeo final, na resolução da fonte), `personagem.*`, `PROMPT_A.txt`, `COMO_FAZER.md` e `ENTREGA.md`.
+2. **Entregue na mesma resposta, sem o usuário precisar procurar nada:**
+   - os **arquivos** a anexar no editor, enviados como arquivo pelo host (cada `<id>_frame.png` e `personagem.*`); sem esse recurso, os caminhos absolutos;
+   - o **prompt completo** de cada shot num bloco de código (texto do `ENTREGA.md`);
+   - o resumo do passo a passo: anexar **o frame e depois o personagem**, colar o prompt sem mudar, gerar 2–4 variações, descartar as que reenquadraram, mudaram a boca ou cortaram a pessoa, baixar em PNG na resolução máxima, **não recortar**, devolver aqui.
+3. **Espere as imagens.** Elas voltam anexadas no chat (salve em `JOB/anchors_user/` como `A_v1.png`, `A_v2.png`…) ou já nessa pasta.
+4. **Revise** (próxima seção) e responda com o veredito de cada variação.
+5. Aprovada: `VPY S/qa_anchor.py JOB/job.json A --set` e mostre a `_paste.png` escolhida. Nenhuma aprovada: peça novas variações com as frases de correção, ou o shot segue sem âncora.
+
+<a id="revisão-da-âncora-devolvida"></a>
+
+### Revisão da âncora devolvida (números + olhos)
+
+`VPY S/qa_anchor.py JOB/job.json A` faz a parte medida: alinha cada imagem ao frame original (ORB no fundo; corrige o 2:3 do GPT Image e reenquadres leves), reprova enquadramento, escala e posição do rosto, pessoa cortada pelo editor, pessoa extra, rosto ainda original e rosto borrado (< 35% da nitidez da fonte), e imprime para cada problema a frase de correção para o editor. Ele grava a **folha de revisão `review_A.jpg`**: por variação, original | editada alinhada | colada | rosto e boca ampliados (original × colada).
+
+**Abra a folha e confira o que os números não veem:**
+
+| Conferir | Reprova se | Frase para o editor |
+|---|---|---|
+| Costura | Borda visível em volta do rosto ou da pessoa, mancha, "recorte colado" | "Blend the character naturally into the scene, with no visible seams or halo around the head and body." |
+| Restos da pessoa original | Cabelo, roupa, mãos ou acessórios da pessoa original aparecendo | "Remove every trace of the original person: hair, clothes and accessories must all come from Image 2." |
+| Mãos, dentes e olhos | Dedos deformados ou a mais, dentes borrados, olhos tortos ou diferentes entre si | "Fix the hands, teeth and eyes so they look natural and anatomically correct; keep the same pose as Image 1." |
+| Figurino | Peça faltando, cortada (chapéu, capa), cor ou padrão diferente da referência | "Keep the full costume from Image 2, every piece, with the same colors and patterns." |
+| Luz e cor | Personagem com luz de estúdio, cor ou contraste diferentes do resto da cena | "Relight the character to match the light, color and contrast of Image 1; no studio lighting." |
+| Boca e olhar | Boca aberta/fechada diferente do recorte "boca original"; olhar para outro lado | "Match the mouth opening and the gaze direction of the person in Image 1 exactly." |
+| Estilo | Personagem realista virou desenho (ou o contrário, sem ter sido pedido) | "Keep the character photorealistic, like a real frame of this video." |
+| Texto e marcas | Texto, logo ou marca d'água **sobre a pessoa** | "Do not add any text, logo or watermark." |
+
+Marca d'água no canto (o Gemini às vezes põe uma) não importa se estiver fora da pessoa: a colagem devolve o fundo original.
+
+**Responda ao usuário assim** (uma linha por variação):
+
+> - `A_v1`: refazer. O editor cortou a base do quadro (14% da pessoa). No mesmo chat, mande: *"Do not crop the image. Keep all of Image 1; if you need another aspect ratio, add plain borders instead."*
+> - `A_v2`: refazer. Ficou uma borda visível em volta do rosto e o cabelo da pessoa original aparece. Mande: *"Blend the character naturally… / Remove every trace of the original person…"*
+> - `A_v4`: **aprovada** (nota 1,68; enquadramento, boca e identidade ok). Vou usar a versão colada.
+
+**Exemplo do teste da skill:** uma variação montada à mão (rosto do personagem colado no lugar certo) passou em todos os números, mas a folha mostrou uma borda oval no rosto e o cabelo da pessoa original sobrando em volta. Pela checklist, ela seria **refazer**: os números sozinhos não bastam.
 
 O prompt pede ao editor bordas em vez de recorte quando ele não conseguir manter a proporção. Se mesmo assim cortar parte da pessoa, o `qa_anchor` reprova (> 5% da pessoa fora): naquela faixa ficaria a pessoa original.
+
+A âncora gerada pela IA com o Qwen passa pela **mesma revisão** (números + folha `out/review_<shot>.jpg`).
 
 ## Escolha automática das variações: `qa_anchor.py`
 
