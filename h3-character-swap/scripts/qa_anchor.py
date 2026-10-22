@@ -51,7 +51,8 @@ _FL = None
 
 
 def face_geom(img):
-    """(centro_x, centro_y, largura, MAR) do maior rosto, em pixels; None se não houver rosto."""
+    """(centro_x, centro_y, largura, MAR, boca_x, boca_y, boca_largura) do maior rosto, em pixels; None sem rosto.
+    A boca vem dos pontos dos lábios (cantos 61/291, meio 0/17/13/14), não de uma posição estimada pelo rosto."""
     global _FL
     import mediapipe as mp
     from mediapipe.tasks.python import vision, BaseOptions
@@ -84,7 +85,9 @@ def face_geom(img):
     else:
         xs, ys = np.array([q.x * w for q in p]), np.array([q.y * h for q in p])
     v = np.hypot(xs[13] - xs[14], ys[13] - ys[14]); hz = np.hypot(xs[78] - xs[308], ys[78] - ys[308])
-    return (xs.mean(), ys.mean(), xs.max() - xs.min(), v / hz if hz else 0.0)
+    lips = [61, 291, 0, 17, 13, 14]
+    return (xs.mean(), ys.mean(), xs.max() - xs.min(), v / hz if hz else 0.0,
+            float(xs[lips].mean()), float(ys[lips].mean()), float(np.hypot(xs[61] - xs[291], ys[61] - ys[291])))
 
 
 def align(src, anc, ms):
@@ -230,37 +233,50 @@ def hints_for(r):
 
 def review_sheet(path, src, rows, imgs, gs):
     """Folha para a revisão VISUAL do agente: por variação, original | editada (alinhada) | colada | rosto e boca
-    ampliados (original x colada). O agente abre a imagem e confere a checklist do 05-ancora.md."""
-    H, W = src.shape[:2]; tw = 240; th = int(tw * H / W); fz = th // 3   # 2 rostos + 2 bocas (meia altura) = th
-    def lab(im, t, ok=None):
-        im = im.copy(); c = (0, 170, 0) if ok else (0, 0, 220) if ok is not None else (40, 40, 40)
-        cv2.rectangle(im, (0, 0), (im.shape[1], 26), (255, 255, 255), -1)
-        cv2.putText(im, t, (5, 19), cv2.FONT_HERSHEY_SIMPLEX, 0.5, c, 1, cv2.LINE_AA)
-        return im
-    def face(im, k, size):
-        if not gs: return np.full((size, size, 3), 200, np.uint8)
-        x0, y0, x1, y1 = face_box(im, gs, k)
-        return cv2.resize(im[y0:y1, x0:x1], (size, size), interpolation=cv2.INTER_CUBIC)
-    def mouth(im):
-        if not gs: return np.full((fz // 2, fz, 3), 200, np.uint8)
-        cx, cy, w = gs[0], gs[1] + gs[2] * 0.28, gs[2] * 0.7
-        x0, y0 = int(max(0, cx - w / 2)), int(max(0, cy - w / 4))
-        return cv2.resize(im[y0:int(min(H, cy + w / 4)), x0:int(min(W, cx + w / 2))], (fz, fz // 2), interpolation=cv2.INTER_CUBIC)
+    ampliados (original x colada). Cada recorte é centrado nos pontos do PRÓPRIO rosto e da PRÓPRIA boca daquela
+    imagem; as etiquetas ficam numa faixa acima de cada imagem, sem cobrir nada. O agente abre a imagem e confere a
+    checklist do 05-ancora.md."""
+    H, W = src.shape[:2]; tw, bar = 240, 22; th = int(tw * H / W)
+    fh = (th - 3 * bar) // 3                                 # coluna direita: 2 rostos fh x fh + 2 bocas fh x fh/2
+    def tile(im, text, ok=None, size=None):
+        if size is not None:
+            im = cv2.resize(im, size, interpolation=cv2.INTER_CUBIC if size[0] > im.shape[1] else cv2.INTER_AREA)
+        strip = np.full((bar, im.shape[1], 3), 255, np.uint8)
+        c = (0, 150, 0) if ok else (0, 0, 220) if ok is not None else (40, 40, 40)
+        cv2.putText(strip, text, (4, 16), cv2.FONT_HERSHEY_SIMPLEX, 0.47, c, 1, cv2.LINE_AA)
+        return np.vstack([strip, im])
+    def crop(im, cx, cy, w, h):
+        x0, y0 = int(round(cx - w / 2)), int(round(cy - h / 2))
+        pad = int(max(w, h))                                 # borda cinza se o recorte passar do quadro
+        big = cv2.copyMakeBorder(im, pad, pad, pad, pad, cv2.BORDER_CONSTANT, value=(128, 128, 128))
+        return big[y0 + pad:y0 + pad + int(h), x0 + pad:x0 + pad + int(w)]
+    def face_tile(im, g, text, ok=None):
+        if not g: return tile(np.full((fh, fh, 3), 200, np.uint8), text + " (sem rosto)", ok)
+        side = g[2] * 1.5
+        return tile(crop(im, g[0], g[1], side, side), text, ok, (fh, fh))
+    def mouth_tile(im, g, text, ok=None):
+        if not g: return tile(np.full((fh // 2, fh, 3), 200, np.uint8), text + " (sem rosto)", ok)
+        w = max(g[6] * 1.8, 8)                               # 1,8 largura da boca: lábios inteiros + margem
+        return tile(crop(im, g[4], g[5], w, w / 2), text, ok, (fh, fh // 2))
+    gs_ = face_geom(src)
     blocks = []
     for r in rows:
         al, pasted = imgs[r["arquivo"]]
         ok = not r["problemas"]
-        sm = lambda im: cv2.resize(im, (tw, th), interpolation=cv2.INTER_AREA)
-        faces = np.vstack([lab(face(src, 1.6, fz), "rosto original"), lab(face(pasted, 1.6, fz), "rosto colado", ok),
-                           lab(mouth(src), "boca original"), lab(mouth(pasted), "boca colada", ok)])
-        faces = cv2.copyMakeBorder(faces, 0, max(0, th - faces.shape[0]), 0, 0, cv2.BORDER_CONSTANT, value=(255, 255, 255))[:th]
-        row = np.hstack([lab(sm(src), "original"), lab(sm(al), "editada (alinhada)"),
-                         lab(sm(pasted), ("OK " if ok else "REPROVADA ") + f"nota {r['nota']:.2f}", ok), faces])
+        gp = face_geom(pasted)
+        sm = (tw, th)
+        right = np.vstack([face_tile(src, gs_, "rosto original"), face_tile(pasted, gp, "rosto colado", ok),
+                           mouth_tile(src, gs_, "boca original"), mouth_tile(pasted, gp, "boca colada", ok)])
+        hh = bar + th
+        right = cv2.copyMakeBorder(right, 0, max(0, hh - right.shape[0]), 0, 0, cv2.BORDER_CONSTANT, value=(255, 255, 255))[:hh]
+        row = np.hstack([tile(src, "original", None, sm), tile(al, "editada (alinhada)", None, sm),
+                         tile(pasted, ("OK " if ok else "REPROVADA ") + f"nota {r['nota']:.2f}", ok, sm),
+                         np.full((hh, 6, 3), 255, np.uint8), right])
         title = np.full((30, row.shape[1], 3), 255, np.uint8)
         cv2.putText(title, f"{r['arquivo']}  " + ("; ".join(r["problemas"]) if r["problemas"] else "sem problema medido"),
                     (6, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 220) if r["problemas"] else (0, 140, 0), 1, cv2.LINE_AA)
         blocks.append(np.vstack([title, row, np.full((8, row.shape[1], 3), 255, np.uint8)]))
-    cv2.imwrite(path, np.vstack(blocks), [cv2.IMWRITE_JPEG_QUALITY, 90])
+    cv2.imwrite(path, np.vstack(blocks), [cv2.IMWRITE_JPEG_QUALITY, 92])
 
 
 def score(r):
