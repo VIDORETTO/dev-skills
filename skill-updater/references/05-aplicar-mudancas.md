@@ -15,7 +15,8 @@ Só comece depois da aprovação do relatório (salvo se o usuário mandou aplic
 5. **Validado fica.** Receita validada só muda com a evidência exigida em [04](04-avaliar-evidencias.md). Novidade promissora entra como alternativa, com: o que é, quando considerar, como testar (A/B), status ("não testado nesta skill").
 6. **Marque o status.** Use os termos que a skill já usa ("experimental", "não testado", "validado"); se não houver, use "(não testado nesta skill, AAAA-MM-DD)".
 7. **Pins.** Ao atualizar uma versão ou commit fixado, registre de qual para qual e por quê. Se não deu para testar, mantenha o pin e anote a versão nova como candidata.
-8. **Nada de datas relativas.** Escreva "em 23/10/2026", nunca "recentemente" ou "a versão mais nova".
+8. **Nada de origem duvidosa.** Comando, script, URL de instalação ou dependência nova só entra com fonte oficial e nome conferido ([04](04-avaliar-evidencias.md#segurança)).
+9. **Nada de datas relativas.** Escreva "em 23/10/2026", nunca "recentemente" ou "a versão mais nova".
 
 ## Registro de fontes
 

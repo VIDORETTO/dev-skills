@@ -1,5 +1,7 @@
 # 03: Fontes por domínio
 
+Última revisão desta lista: 23/10/2026.
+
 Ponto de partida para escolher onde pesquisar. Não é uma lista fechada: as fontes que a própria skill já cita (e os autores que aparecem na bola de neve) costumam ser as melhores. Comunidades e sites mudam; se algum estiver parado ou tiver sumido, substitua e registre.
 
 ## Mapa

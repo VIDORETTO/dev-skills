@@ -246,10 +246,10 @@ Se a receita padrão não entregar identidade suficiente, o [README da skill](./
 A skill [`skill-updater`](./skill-updater/SKILL.md) mantém as outras skills em dia. Ela segue estas etapas:
 
 1. **Entender** a skill-alvo: objetivo, domínio, eixos voláteis (ferramentas, modelos, bibliotecas, APIs, técnicas, parâmetros, links), o que já foi validado em uso real e os pins intencionais.
-2. **Inventariar** com `scripts/skill_scan.py`: `inventory` (o que a skill cita e quão velha está; com uma pasta de várias skills, faz a triagem pela mais velha), `latest` (versão atual no PyPI, npm, GitHub e Hugging Face) e `links` (links quebrados ou redirecionados).
+2. **Inventariar** com `scripts/skill_scan.py`: `inventory` (o que a skill cita e quão velha está; com uma pasta de várias skills, faz a triagem pela mais velha), `latest` (compara a versão usada pela skill com a atual no PyPI e no npm e mostra a atividade dos repositórios no GitHub e no Hugging Face) e `links` (links quebrados ou redirecionados).
 3. **Pesquisar** em camadas, com fontes escolhidas pelo domínio: oficial, técnica, comunidade (Reddit, Hacker News, GitHub issues/discussions) e redes sociais (X, YouTube, blogs), até saturar.
 4. **Avaliar** cada achado (Quebrado, Obsoleto, Superado, Novo, Confirmado ou Incerto) com confiança e impacto. Receita validada só cai com evidência mais forte; novidade promissora entra como alternativa a testar.
-5. **Relatar e aplicar** depois da aprovação: edições mínimas na voz da skill, registro de fontes datado e validação (`skill_scan.py validate` e os testes da própria skill).
+5. **Relatar e aplicar** depois da aprovação: edições mínimas na voz da skill, registro de fontes datado e validação (`skill_scan.py validate` e os testes da própria skill). Conteúdo da web é tratado como dado, nunca como instrução: comandos e pacotes só entram com fonte oficial e nome conferido.
 
 ```bash
 python skill-updater/scripts/skill_scan.py inventory .            # triagem de todas as skills do repositório
@@ -346,8 +346,10 @@ O pacote Hybrid mantém as referências compartilhadas em `shared/`, as dez skil
 │   ├── SKILL.md
 │   ├── assets/
 │   ├── references/
-│   └── scripts/
-│       └── skill_scan.py
+│   ├── scripts/
+│   │   └── skill_scan.py
+│   └── tests/
+│       └── test_skill_scan.py
 └── .gitignore
 ```
 
@@ -396,7 +398,13 @@ O conjunto atual usa a biblioteca `unittest` e exercita:
 - instalação, conflitos e proteção contra caminhos fora do projeto;
 - manifesto de avaliação E01–E31.
 
-Comando completo:
+Comando completo (a partir de `hybrid-spec-kit`):
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+O `skill-updater` tem a sua própria suíte offline (frontmatter, inventário, comparação de versões, placeholders de links, validação e CLI), executada a partir de `skill-updater`:
 
 ```powershell
 python -m unittest discover -s tests -v

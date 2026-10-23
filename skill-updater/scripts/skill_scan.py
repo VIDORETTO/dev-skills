@@ -27,7 +27,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timezone
+from datetime import date
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -146,17 +147,25 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str | None]:
     return data, None
 
 
-def git_last_change(path: Path) -> str | None:
+def git_dates(skill_dir: Path) -> tuple[str | None, dict[str, str]]:
+    """Last commit date of the skill and of each file in it, in one git call."""
     try:
         out = subprocess.run(
-            ["git", "log", "-1", "--format=%cs", "--", str(path)],
-            cwd=path if path.is_dir() else path.parent,
-            capture_output=True, text=True, timeout=20,
+            ["git", "log", "--format=%x00%cs", "--name-only", "--relative", "--", "."],
+            cwd=skill_dir, capture_output=True, text=True, timeout=60,
         )
     except (OSError, subprocess.SubprocessError):
-        return None
-    value = out.stdout.strip()
-    return value or None
+        return None, {}
+    newest: str | None = None
+    per_file: dict[str, str] = {}
+    current = None
+    for line in out.stdout.splitlines():
+        if line.startswith("\0"):
+            current = line[1:]
+            newest = newest or current
+        elif line.strip() and current:
+            per_file.setdefault(line.strip(), current)
+    return newest, per_file
 
 
 def days_since(iso: str | None) -> int | None:
@@ -175,6 +184,7 @@ def clean_url(url: str) -> str:
     return url
 
 
+@lru_cache(maxsize=1)
 def ssl_context() -> ssl.SSLContext:
     cafile = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
     return ssl.create_default_context(cafile=cafile) if cafile and Path(cafile).is_file() else ssl.create_default_context()
@@ -271,14 +281,15 @@ def inventory_skill(skill_dir: Path) -> dict[str, Any]:
             imports = set()
             for m in re.finditer(r"^\s*(?:from|import)\s+([A-Za-z_]\w*)", text, re.M):
                 mod = m.group(1)
-                if mod not in stdlib and mod != "__future__" and not (skill_dir / "scripts" / f"{mod}.py").exists():
+                local = (path.parent / f"{mod}.py").exists() or (path.parent / mod).is_dir() or (skill_dir / "scripts" / f"{mod}.py").exists()
+                if mod not in stdlib and mod != "__future__" and not local:
                     imports.add(mod)
             if imports:
                 installs.append({"tool": "python-import", "packages": sorted(imports), "at": rel})
 
-    last_change = git_last_change(skill_dir)
+    last_change, per_file = git_dates(skill_dir)
     for f in files:
-        f["git_last_change"] = git_last_change(skill_dir / f["path"])
+        f["git_last_change"] = per_file.get(f["path"])
     newest_mentioned = max((d["date"] for d in dates), default=None)
     return {
         "skill": meta.get("name") or skill_dir.name,
@@ -352,6 +363,32 @@ def cmd_inventory(args: argparse.Namespace) -> None:
 # --------------------------------------------------------------------------- latest
 
 
+def norm_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def vtuple(version: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in re.findall(r"\d+", version)[:4])
+
+
+def compare(used: str | None, latest: str | None) -> str:
+    """'atrás (major)', 'atrás (minor)', 'atrás (patch)', 'em dia' or ''."""
+    if not used or not latest:
+        return ""
+    u, l = vtuple(used), vtuple(latest)
+    if not u or not l or u >= l:
+        return "em dia" if u and l else ""
+    for i, label in enumerate(("major", "minor", "patch")):
+        if (u + (0,) * 4)[i] < (l + (0,) * 4)[i]:
+            return f"atrás ({label})"
+    return "atrás"
+
+
+def _pkg_version(spec: str) -> str | None:
+    m = re.search(r"(?:==|~=|>=|@\^?|@~?)\s*v?(\d+(?:\.\d+)*)", spec.lstrip("@"))
+    return m.group(1) if m else None
+
+
 def _pkg_name(spec: str) -> str | None:
     spec = spec.strip().strip("'\"")
     if not spec or spec.startswith((".", "/", "git+", "http")) or "/" in spec.lstrip("@").split("@")[0] and not spec.startswith("@"):
@@ -408,20 +445,38 @@ def latest_hf(ref: str) -> dict[str, Any]:
 def cmd_latest(args: argparse.Namespace) -> None:
     jobs: list[tuple[str, str, Any]] = []
     seen: set[tuple[str, str]] = set()
+    from_import: set[str] = set()
+    declared: set[str] = set()
 
     def add(kind: str, name: str, fn) -> None:
-        if (kind, name) not in seen and len(jobs) < args.max:
-            seen.add((kind, name))
+        nonlocal wanted
+        key = (kind, norm_name(name))
+        if key in seen:
+            return
+        seen.add(key)
+        wanted += 1
+        if len(jobs) < args.max:
             jobs.append((kind, name, fn))
 
+    used: dict[str, set[str]] = {}
+    wanted = 0
     for inv in (inventory_skill(d) for d in find_skills(args.paths)):
+        for pin in inv["pins"]:
+            used.setdefault(norm_name(pin["name"]), set()).add(pin["version"])
         for p in inv["packages"]:
             tool = p["tool"]
             for spec in p["packages"]:
                 name = _pkg_name(spec)
                 if not name:
                     continue
-                if tool in {"pip", "pip3", "uv", "uv pip", "pipx", "poetry", "python-import"}:
+                if v := _pkg_version(spec):
+                    used.setdefault(norm_name(name), set()).add(v)
+                if tool == "python-import":
+                    from_import.add(norm_name(name))
+                if tool in {"pip", "pip3", "uv", "uv pip", "pipx", "poetry"}:
+                    declared.add(norm_name(name))
+                    add("pypi", name, latest_pypi)
+                elif tool == "python-import":
                     add("pypi", name, latest_pypi)
                 elif tool in {"npm", "pnpm", "yarn", "bun"}:
                     add("npm", name, latest_npm)
@@ -439,17 +494,29 @@ def cmd_latest(args: argparse.Namespace) -> None:
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(run, jobs))
+    for r in results:
+        versions = sorted(used.get(norm_name(r["name"]), set()), key=vtuple)
+        r["used"] = versions
+        r["status"] = compare(versions[0] if versions else None, r.get("latest"))
+        r["via_import"] = r["source"] == "pypi" and norm_name(r["name"]) in from_import - declared
 
     def render(rows: list[dict[str, Any]]) -> str:
-        out = ["| Fonte | Nome | Mais recente | Data | Observação |", "|---|---|---|---|---|"]
-        for r in rows:
+        out = ["| Fonte | Nome | Na skill | Mais recente | Situação | Data | Observação |", "|---|---|---|---|---|---|---|"]
+        order = {"atrás (major)": 0, "atrás (minor)": 1, "atrás (patch)": 2, "atrás": 2}
+        for r in sorted(rows, key=lambda r: order.get(r["status"], 3)):
             note = r.get("error") or ", ".join(
                 f"{k}={r[k]}" for k in ("archived", "renamed_to", "stars", "downloads", "gated", "yanked") if r.get(k) not in (None, False, "")
             )
-            out.append(f"| {r['source']} | {r['name']} | {r.get('latest') or '—'} | {r.get('released') or r.get('modified') or r.get('pushed') or '—'} | {note} |")
-        if os.environ.get("GITHUB_TOKEN") is None and any(r["source"] == "github" for r in rows):
+            if r.get("via_import"):
+                note = "só visto como import: confira se é o mesmo projeto" + (f"; {note}" if note else "")
+            out.append(f"| {r['source']} | {r['name']} | {', '.join(r['used']) or '—'} | {r.get('latest') or '—'} | {r['status'] or '—'} "
+                       f"| {r.get('released') or r.get('modified') or r.get('pushed') or '—'} | {note} |")
+        if wanted > len(rows):
+            out.append(f"\n{wanted - len(rows)} itens ficaram de fora pelo limite --max {args.max}; aumente-o para ver todos.")
+        if not (os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")) and any(r["source"] == "github" for r in rows):
             out.append("\nSem GITHUB_TOKEN a API do GitHub limita a 60 chamadas/hora; erros 403 aqui são limite, não repo inexistente.")
-        out.append("\n'python-import' pode trazer nomes de módulo que diferem do pacote no PyPI (cv2 → opencv-python); confira os 404.")
+        out.append("\n'atrás' só diz que existe versão nova; se a skill fixou a versão de propósito, confirme o motivo antes de subir.")
+        out.append("Nome de import pode não ser o pacote do PyPI (cv2 → opencv-python; comfy no PyPI não é o ComfyUI); confira antes de concluir.")
         return "\n".join(out)
 
     emit(results, args.json, render)
@@ -471,17 +538,17 @@ def is_placeholder(url: str) -> bool:
 
 
 def check_url(url: str) -> dict[str, Any]:
+    """HEAD first; many servers reject HEAD, so any failure is retried with GET."""
+    status, err = None, None
     for method in ("HEAD", "GET"):
         try:
             status, final, _ = http(url, method=method, timeout=12, read_body=False)
+            err = None
         except Exception as exc:
             status, final, err = None, url, str(exc)[:160]
-        else:
-            err = None
         if status and status < 400:
-            return {"url": url, "status": status, "final": final if final != url else None}
-        if status not in (403, 405, 429, None) and method == "HEAD":
-            continue
+            moved = final if final.rstrip("/") != url.rstrip("/") else None
+            return {"url": url, "status": status, "final": moved}
     return {"url": url, "status": status, "final": None, "error": err}
 
 
