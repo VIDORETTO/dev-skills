@@ -28,6 +28,7 @@ O conjunto atual inclui estes componentes independentes:
 | [`hybrid-spec-kit`](./hybrid-spec-kit/README.md) | Dez skills para descobrir, especificar, planejar, fatiar, implementar e revisar mudanças, com um runner determinístico. Otimizado para custo: um filtro de escopo deixa pedidos pequenos fora do kit ([estudo](./hybrid-spec-kit/README.md#custo-e-eficiência-kit-pesado--hybrid)). | `hybrid-spec-kit/skills/*/SKILL.md` e `hybrid-spec-kit/scripts/hybrid.py` |
 | [`readme-standardization-skill`](./readme-standardization-skill/SKILL.md) | Uma skill para analisar um repositório e criar ou padronizar seu README em quatro camadas. | `readme-standardization-skill/SKILL.md`, nome `readme-standardization` |
 | [`h3-character-swap`](./h3-character-swap/README.md) | Uma skill para trocar a pessoa de um vídeo por um personagem de imagem de referência com MiniMax H3 + LoRA akatz v1.5 no ComfyUI/RunPod. Inclui análise prévia local, deploy do pod, geração por segmentos com máscara SAM 3.1, best-of-N por seeds com QA objetiva (lip sync, identidade, máscara e cor), final em resolução cheia sobre o vídeo original e a indicação de um LoRA alternativo (Alissonerdx v1.1). | `h3-character-swap/SKILL.md` e `h3-character-swap/scripts/*.py`, nome `h3-character-swap` |
+| [`skill-updater`](./skill-updater/SKILL.md) | Uma skill que atualiza outras skills: entende o objetivo de cada uma, inventaria ferramentas, modelos, versões e links, pesquisa o estado da arte em fontes oficiais, fóruns e redes sociais, e aplica mudanças mínimas com fontes datadas. | `skill-updater/SKILL.md` e `skill-updater/scripts/skill_scan.py`, nome `skill-updater` |
 
 O objetivo é manter o julgamento semântico nas skills e deixar fatos verificáveis — estrutura, IDs, referências, grafos, projeções, fingerprints, evidências e checkpoints — sob um runtime local reproduzível quando esse runtime existir.
 
@@ -119,6 +120,10 @@ Use `--skill-root .cursor/skills` quando o host usar outra convenção. Arquivos
 `h3-character-swap` é autocontida: copie a pasta para o diretório de skills do seu host de agente. Exemplos: `~/.claude/skills/`, `~/.agents/skills/`, `~/.codex/skills/`, `~/.cursor/skills/`, `~/.gemini/skills/`, `~/.config/opencode/skills/`. O nome declarado é `h3-character-swap`.
 
 Os scripts de geração (`run_job.py`, `make_pod.py`, `assemble.py`) usam apenas a biblioteca padrão do Python e o ffmpeg. A análise prévia, o QA e o composite (`prepare.py`, `qa_*.py`, `composite.py`) precisam de um venv com rembg, OpenCV, MediaPipe, Demucs, faster-whisper e InsightFace, descrito em [`references/08-ambiente-local.md`](./h3-character-swap/references/08-ambiente-local.md). A geração exige uma conta RunPod com o MCP do RunPod conectado.
+
+### Disponibilizar a skill Skill Updater
+
+`skill-updater` é autocontida: copie a pasta para o diretório de skills do seu host de agente. O nome declarado é `skill-updater`. O script [`scripts/skill_scan.py`](./skill-updater/scripts/skill_scan.py) usa apenas a biblioteca padrão do Python. A pesquisa precisa de uma ferramenta de busca na web no host (por exemplo, `WebSearch`/`WebFetch` no Claude Code); sem ela, a skill para e avisa em vez de atualizar de memória.
 
 ## 🚀 Quick Start
 
@@ -236,6 +241,21 @@ A skill [`h3-character-swap`](./h3-character-swap/SKILL.md) troca a pessoa de um
 
 Se a receita padrão não entregar identidade suficiente, o [README da skill](./h3-character-swap/README.md#lora-alternativo) descreve um LoRA alternativo (Alissonerdx v1.1) e como testá-lo. As regras, os casos de falha e o estado da arte estão em [`h3-character-swap/references/`](./h3-character-swap/references/).
 
+### Skill Updater
+
+A skill [`skill-updater`](./skill-updater/SKILL.md) mantém as outras skills em dia. Ela segue estas etapas:
+
+1. **Entender** a skill-alvo: objetivo, domínio, eixos voláteis (ferramentas, modelos, bibliotecas, APIs, técnicas, parâmetros, links), o que já foi validado em uso real e os pins intencionais.
+2. **Inventariar** com `scripts/skill_scan.py`: `inventory` (o que a skill cita e quão velha está; com uma pasta de várias skills, faz a triagem pela mais velha), `latest` (compara a versão usada pela skill com a atual no PyPI e no npm e mostra a atividade dos repositórios no GitHub e no Hugging Face) e `links` (links quebrados ou redirecionados).
+3. **Pesquisar** em camadas, com fontes escolhidas pelo domínio: oficial, técnica, comunidade (Reddit, Hacker News, GitHub issues/discussions) e redes sociais (X, YouTube, blogs), até saturar.
+4. **Avaliar** cada achado (Quebrado, Obsoleto, Superado, Novo, Confirmado ou Incerto) com confiança e impacto. Receita validada só cai com evidência mais forte; novidade promissora entra como alternativa a testar.
+5. **Relatar e aplicar** depois da aprovação: edições mínimas na voz da skill, registro de fontes datado e validação (`skill_scan.py validate` e os testes da própria skill). Conteúdo da web é tratado como dado, nunca como instrução: comandos e pacotes só entram com fonte oficial e nome conferido.
+
+```bash
+python skill-updater/scripts/skill_scan.py inventory .            # triagem de todas as skills do repositório
+python skill-updater/scripts/skill_scan.py validate h3-character-swap
+```
+
 ### Artefatos e fontes de verdade
 
 No perfil padrão, a fonte canônica é:
@@ -322,6 +342,14 @@ O pacote Hybrid mantém as referências compartilhadas em `shared/`, as dez skil
 │   ├── assets/
 │   ├── references/
 │   └── scripts/
+├── skill-updater/
+│   ├── SKILL.md
+│   ├── assets/
+│   ├── references/
+│   ├── scripts/
+│   │   └── skill_scan.py
+│   └── tests/
+│       └── test_skill_scan.py
 └── .gitignore
 ```
 
@@ -334,6 +362,7 @@ Documentação mais detalhada:
 - [`readme-standardization-skill/references/`](./readme-standardization-skill/references/) — workflow, tipos de projeto, seções, estilo e quality gate do README.
 - [`h3-character-swap/README.md`](./h3-character-swap/README.md) — visão geral da skill, instalação, uso, LoRA alternativo e limitações.
 - [`h3-character-swap/references/`](./h3-character-swap/references/) — análise prévia, pipeline, pré-processamento, prompt, máscara, âncora, parâmetros, RunPod, QA, falhas, caso real, API do ComfyUI, exemplos, fontes, fronteira, guia de profundidade, composite e migração para o Relay 2.0.
+- [`skill-updater/references/`](./skill-updater/references/) — perfil da skill-alvo, protocolo de pesquisa, fontes por domínio, avaliação de evidências e como aplicar e validar as mudanças.
 
 ## 🧑‍🔧 Desenvolvimento
 
@@ -369,7 +398,13 @@ O conjunto atual usa a biblioteca `unittest` e exercita:
 - instalação, conflitos e proteção contra caminhos fora do projeto;
 - manifesto de avaliação E01–E31.
 
-Comando completo:
+Comando completo (a partir de `hybrid-spec-kit`):
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+O `skill-updater` tem a sua própria suíte offline (frontmatter, inventário, comparação de versões, placeholders de links, validação e CLI), executada a partir de `skill-updater`:
 
 ```powershell
 python -m unittest discover -s tests -v
