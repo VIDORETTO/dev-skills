@@ -1,0 +1,2 @@
+id,feature,category,input_fixture,oracle,comparison_method,expected,actual,status,evidence_id,notes
+T-001,feature-example,happy_path,fixture-01,original-1,structured-json,"{ok:true}",,NOT_RUN,EV-001,"Valores são demonstrativos; substituir"

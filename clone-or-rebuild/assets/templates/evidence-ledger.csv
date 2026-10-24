@@ -1,0 +1,2 @@
+id,claim,state,authority,location,target_identity,method,limits,next_proof
+EV-001,"O menu de exportação chama o módulo X",INFERIDO,"bundle estático","bundle.js:posição 120",versão-1,"busca de string e cross-reference","runtime não observado","testar clique em staging"
